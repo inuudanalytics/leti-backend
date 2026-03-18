@@ -4016,9 +4016,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "api.leti.com",
+	Host:             "leti-backend.onrender.com",
 	BasePath:         "/api/v1",
-	Schemes:          []string{},
+	Schemes:          []string{"https"},
 	Title:            "Leti API",
 	Description:      "Leti Server REST API",
 	InfoInstanceName: "swagger",

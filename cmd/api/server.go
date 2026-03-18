@@ -22,8 +22,9 @@ import (
 // @title           Leti API
 // @version         1.0
 // @description     Leti Server REST API
-// @host            api.leti.com
+// @host            leti-backend.onrender.com
 // @BasePath        /api/v1
+// @schemes         https
 //
 // @securityDefinitions.apikey BearerAuth
 // @in header

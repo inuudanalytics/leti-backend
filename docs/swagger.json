@@ -1,4 +1,7 @@
 {
+    "schemes": [
+        "https"
+    ],
     "swagger": "2.0",
     "info": {
         "description": "Leti Server REST API",
@@ -6,7 +9,7 @@
         "contact": {},
         "version": "1.0"
     },
-    "host": "api.leti.com",
+    "host": "leti-backend.onrender.com",
     "basePath": "/api/v1",
     "paths": {
         "/admin/admins": {

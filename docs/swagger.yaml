@@ -211,7 +211,7 @@ definitions:
       url:
         type: string
     type: object
-host: api.leti.com
+host: leti-backend.onrender.com
 info:
   contact: {}
   description: Leti Server REST API
@@ -2585,6 +2585,8 @@ paths:
       summary: Mark all notifications as read
       tags:
       - Notifications
+schemes:
+- https
 securityDefinitions:
   BearerAuth:
     in: header
