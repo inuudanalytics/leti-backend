@@ -1,0 +1,126 @@
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	mw "leti_server/internal/api/middlewares"
+	"leti_server/internal/api/routers"
+	cronjobs "leti_server/internal/cron_jobs"
+	"leti_server/internal/repositories/sqlconnect"
+	"leti_server/pkg/cache"
+	"leti_server/pkg/config"
+	"leti_server/pkg/utils"
+
+	"github.com/joho/godotenv"
+)
+
+// @title           Leti API
+// @version         1.0
+// @description     Leti Server REST API
+// @host            localhost:5000
+// @BasePath        /api/v1
+//
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+func main() {
+	if err := godotenv.Load(); err != nil {
+		utils.Logger.Warn("No .env file found, using environment defaults")
+	}
+
+	utils.InitLogger()
+
+	if err := sqlconnect.ConnectDb(); err != nil {
+		utils.Logger.Fatal("DB connection failed: ", err)
+	}
+
+	if err := cache.InitRedis(); err != nil {
+		utils.Logger.Fatal("Redis connection failed: ", err)
+	}
+
+	go func() {
+		ctx := context.Background()
+		usernames, err := sqlconnect.GetAllUsernames(ctx)
+		if err != nil {
+			utils.Logger.Warnf("failed to fetch usernames for bloom seed: %v", err)
+			return
+		}
+		cache.SeedUsernameBloom(ctx, usernames)
+	}()
+
+	config.InitFirebase()
+
+	// Start cron jobs
+	cleanupCron := cronjobs.StartCronJobs()
+	defer cleanupCron.Stop()
+
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS10,
+	}
+
+	port := os.Getenv("SERVER_PORT")
+	cert := os.Getenv("CERT_FILE")
+	key := os.Getenv("KEY_FILE")
+
+	router := routers.MainRouter()
+
+	jwtMiddleware := mw.MiddlewaresExcludePaths(
+		mw.JWTMiddleware,
+		"/swagger/",
+		"/api/v1/auth/signup",
+		"/api/v1/auth/refresh",
+		"/api/v1/admin/auth/refresh",
+		"/api/v1/auth/apple",
+		"/api/v1/auth/google",
+		"/api/v1/auth/login",
+		"/api/v1/admin/auth/login",
+		"/api/v1/auth/verify-otp",
+		"/api/v1/auth/resend-otp",
+		"/api/v1/auth/forgot-password",
+		"/api/v1/agents/reset-password/reset",
+		"/api/v1/webhooks/paystack",
+		"/api/v1/wallets/verify/payment",
+		"/api/v1/marketplace/parts",
+		"/api/v1/marketplace/stores",
+	)
+
+	secureMux := jwtMiddleware(mw.SecurityHeaders(mw.ResponseTimeMiddleware(router)))
+
+	server := &http.Server{
+		Addr:      port,
+		Handler:   secureMux,
+		TLSConfig: tlsConfig,
+	}
+
+	go func() {
+		utils.Logger.Infof("Server running on port %s", port)
+		if err := server.ListenAndServeTLS(cert, key); err != nil && err != http.ErrServerClosed {
+			utils.Logger.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	<-stop
+	utils.Logger.Info("Shutting down server...")
+
+	httpCtx, httpCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer httpCancel()
+	if err := server.Shutdown(httpCtx); err != nil {
+		utils.Logger.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	utils.Logger.Info("Stopping webhook retry worker...")
+
+	utils.Logger.Info("Webhook retry worker stopped")
+
+	sqlconnect.CloseDb()
+	utils.Logger.Info("Server exited gracefully")
+}

@@ -1,0 +1,55 @@
+package routers
+
+import (
+	"leti_server/internal/api/handlers/admins"
+	"net/http"
+)
+
+func adminRouter() *http.ServeMux {
+	mux := http.NewServeMux()
+
+	// ── Public (no auth) ─────────────────────────────────────────────────────
+	mux.HandleFunc("POST /admin/auth/login", admins.AdminLoginHandler)
+	mux.HandleFunc("POST /admin/auth/logout", admins.AdminLogoutHandler)
+	mux.HandleFunc("POST /admin/auth/refresh", admins.AdminRefreshTokenHandler)
+
+	// ── Admin auth ───────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/auth/me", http.HandlerFunc(admins.AdminGetMeHandler))
+	mux.Handle("PATCH /admin/auth/password", http.HandlerFunc(admins.AdminUpdatePasswordHandler))
+
+	// ── Admin management (super_admin only) ──────────────────────────────────
+	mux.Handle("POST /admin/admins", http.HandlerFunc(admins.CreateAdminHandler))
+	mux.Handle("GET /admin/admins", http.HandlerFunc(admins.ListAdminsHandler))
+	mux.Handle("PATCH /admin/admins/{id}", http.HandlerFunc(admins.UpdateAdminHandler))
+
+	// ── Dashboard ─────────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/dashboard", http.HandlerFunc(admins.AdminDashboardHandler))
+	mux.Handle("GET /admin/dashboard/card", http.HandlerFunc(admins.AdminDashboardCardHandler))
+	mux.Handle("GET /admin/dashboard/jobs-overview", http.HandlerFunc(admins.AdminJobsOverviewHandler))
+	mux.Handle("GET /admin/dashboard/jobs/{id}", http.HandlerFunc(admins.AdminGetJobHandler))
+
+	// ── Audit logs ────────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/audit-logs", http.HandlerFunc(admins.AdminListAuditLogsHandler))
+
+	// ── Settings ──────────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/settings", http.HandlerFunc(admins.AdminListSettingsHandler))
+	mux.Handle("PATCH /admin/settings/{key}", http.HandlerFunc(admins.AdminUpdateSettingHandler))
+
+	// ── Users ─────────────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/users", http.HandlerFunc(admins.AdminListUsersHandler))
+	mux.Handle("GET /admin/users/{id}", http.HandlerFunc(admins.AdminGetUserHandler))
+	mux.Handle("PATCH /admin/users/{id}/status", http.HandlerFunc(admins.AdminUpdateUserStatusHandler))
+	mux.Handle("DELETE /admin/users/{id}", http.HandlerFunc(admins.AdminDeleteUserHandler))
+
+	// ── Jobs ──────────────────────────────────────────────────────────────────
+	mux.Handle("GET /admin/jobs", http.HandlerFunc(admins.AdminListJobsHandler))
+
+	// ── Finance / withdrawals ─────────────────────────────────────────────────
+	mux.Handle("GET /admin/withdrawals", http.HandlerFunc(admins.AdminListWithdrawalsHandler))
+	mux.Handle("GET /admin/withdrawals/{id}/verify", http.HandlerFunc(admins.AdminVerifyWithdrawalTransferHandler))
+
+	// ── Devices ───────────────────────────────────────────────────────────────
+	mux.Handle("POST /admin/device/tokens", http.HandlerFunc(admins.RegisterAdminDevice))
+
+	return mux
+}

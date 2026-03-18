@@ -1,0 +1,8 @@
+DROP INDEX IF EXISTS idx_users_email;
+DROP INDEX IF EXISTS idx_users_phone_number;
+DROP INDEX IF EXISTS idx_users_status;
+DROP INDEX IF EXISTS idx_users_deleted_at;
+DROP INDEX IF EXISTS idx_users_recovery_email;
+DROP INDEX IF EXISTS idx_users_google_sub;
+DROP INDEX IF EXISTS idx_users_apple_sub;
+DROP TABLE IF EXISTS users;

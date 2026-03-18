@@ -1,0 +1,2593 @@
+basePath: /api/v1
+definitions:
+  adminModels.Admin:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      last_login_at:
+        type: string
+      password:
+        type: string
+      password_changed_at:
+        type: string
+      role:
+        $ref: '#/definitions/adminModels.AdminRole'
+      updated_at:
+        type: string
+    type: object
+  adminModels.AdminLoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  adminModels.AdminRole:
+    enum:
+    - super_admin
+    - admin
+    - support
+    type: string
+    x-enum-varnames:
+    - RoleSuperAdmin
+    - RoleAdmin
+    - RoleSupport
+  adminModels.CreateAdminRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/adminModels.AdminRole'
+    type: object
+  adminModels.DashboardStats:
+    properties:
+      active_users:
+        type: integer
+      completed_bookings:
+        type: integer
+      completed_jobs:
+        type: integer
+      new_users_this_month:
+        type: integer
+      new_users_this_week:
+        type: integer
+      new_users_today:
+        type: integer
+      pending_bookings:
+        type: integer
+      pending_jobs:
+        type: integer
+      suspended_users:
+        type: integer
+      total_artisans:
+        type: integer
+      total_bookings:
+        type: integer
+      total_clients:
+        type: integer
+      total_jobs:
+        type: integer
+      total_owners:
+        type: integer
+      total_users:
+        type: integer
+      total_wallet_volume_ngn:
+        type: number
+    type: object
+  adminModels.PaginatedResponse:
+    properties:
+      data: {}
+      page:
+        type: integer
+      pages:
+        type: integer
+      per_page:
+        type: integer
+      status:
+        type: string
+      total:
+        type: integer
+    type: object
+  adminModels.PlatformSetting:
+    properties:
+      description:
+        type: string
+      key:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      value:
+        type: string
+    type: object
+  adminModels.UpdateAdminPasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
+  adminModels.UpdateAdminRequest:
+    properties:
+      full_name:
+        type: string
+      is_active:
+        type: boolean
+      role:
+        $ref: '#/definitions/adminModels.AdminRole'
+    type: object
+  adminModels.UpdateSettingRequest:
+    properties:
+      value:
+        type: string
+    type: object
+  adminModels.UpdateUserStatusRequest:
+    properties:
+      reason:
+        type: string
+      status:
+        description: approved | suspended | probation | rejected | pending
+        type: string
+    type: object
+  authModels.UpdatePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    type: object
+  authModels.User:
+    properties:
+      active_role:
+        type: string
+      apple_sub:
+        type: string
+      auth_provider:
+        type: string
+      avatar:
+        $ref: '#/definitions/authModels.UserAvatar'
+      deleted_at:
+        type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
+      first_name:
+        type: string
+      google_sub:
+        type: string
+      id:
+        type: string
+      is_online:
+        type: boolean
+      last_name:
+        type: string
+      otp:
+        type: string
+      otp_expires:
+        type: string
+      password:
+        type: string
+      password_changed_at:
+        type: string
+      password_reset_token:
+        type: string
+      password_token_expires:
+        type: string
+      phone_number:
+        type: string
+      phone_verified:
+        type: boolean
+      recovery_email:
+        type: string
+      recovery_email_verified:
+        type: boolean
+      status:
+        type: string
+      user_created_at:
+        type: string
+      username:
+        type: string
+    type: object
+  authModels.UserAvatar:
+    properties:
+      public_id:
+        type: string
+      url:
+        type: string
+    type: object
+host: api.leti.com
+info:
+  contact: {}
+  description: Leti Server REST API
+  title: Leti API
+  version: "1.0"
+paths:
+  /admin/admins:
+    get:
+      description: Returns a paginated list of all admin accounts. Super admin only.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: per_page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adminModels.PaginatedResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List admins
+      tags:
+      - Admin Management
+    post:
+      consumes:
+      - application/json
+      description: Creates a new admin account. Only super_admin can perform this
+        action. Role defaults to support if not provided.
+      parameters:
+      - description: New admin details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.CreateAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                properties:
+                  email:
+                    type: string
+                  full_name:
+                    type: string
+                  id:
+                    type: string
+                  role:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create admin
+      tags:
+      - Admin Management
+  /admin/admins/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates an admin's full_name, role, or is_active status. Super
+        admin only.
+      parameters:
+      - description: Admin UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.UpdateAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update admin
+      tags:
+      - Admin Management
+  /admin/audit-logs:
+    get:
+      description: Returns a paginated list of admin audit logs. Filterable by admin_id,
+        action keyword, and entity_type.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by admin UUID
+        in: query
+        name: admin_id
+        type: string
+      - description: Filter by action keyword (partial match)
+        in: query
+        name: action
+        type: string
+      - description: Filter by entity type e.g. user, booking, job
+        in: query
+        name: entity_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adminModels.PaginatedResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List audit logs
+      tags:
+      - Admin Audit
+  /admin/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates an admin with email and password. Returns a JWT token
+        valid for 24 hours.
+      parameters:
+      - description: Admin credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.AdminLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              admin:
+                properties:
+                  email:
+                    type: string
+                  full_name:
+                    type: string
+                  id:
+                    type: string
+                  role:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Admin login
+      tags:
+      - Admin Auth
+  /admin/auth/logout:
+    post:
+      description: Clears the admin Bearer cookie.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin logout
+      tags:
+      - Admin Auth
+  /admin/auth/me:
+    get:
+      description: Returns the profile of the currently authenticated admin.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/adminModels.Admin'
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current admin
+      tags:
+      - Admin Auth
+  /admin/auth/password:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the authenticated admin's password. Requires the current
+        password.
+      parameters:
+      - description: Password update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.UpdateAdminPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update admin password
+      tags:
+      - Admin Auth
+  /admin/auth/refresh:
+    post:
+      description: Issues a new JWT for an admin using a valid refresh token cookie.
+        Rotates the refresh token.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+              token:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Refresh admin access token
+      tags:
+      - Admin Auth
+  /admin/dashboard:
+    get:
+      description: 'Returns aggregate platform statistics: user counts by role, booking
+        counts, job counts, wallet volume, and new user trends.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/adminModels.DashboardStats'
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Dashboard stats
+      tags:
+      - Admin Dashboard
+  /admin/dashboard/card:
+    get:
+      description: 'Returns live card metrics: total users, active artisans online,
+        active bookings, total escrow funds held, and open disputes.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  active_artisans:
+                    type: integer
+                  active_bookings:
+                    type: integer
+                  total_escrow_funds:
+                    type: number
+                  total_open_disputes:
+                    type: integer
+                  total_users:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Dashboard quick cards
+      tags:
+      - Admin Dashboard
+  /admin/dashboard/jobs-overview:
+    get:
+      description: Returns job stats (active, completed, cancelled, disputed) and
+        a paginated job list. Optionally filter by status.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by job status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              jobs:
+                type: object
+              stats:
+                type: object
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Artisan jobs overview
+      tags:
+      - Admin Dashboard
+  /admin/dashboard/jobs/{id}:
+    get:
+      description: Returns full detail for a single artisan job including the timeline
+        of all events (requests, quotes, disputes).
+      parameters:
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  dispute:
+                    type: object
+                  job:
+                    type: object
+                  timeline:
+                    items:
+                      type: object
+                    type: array
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get job detail
+      tags:
+      - Admin Dashboard
+  /admin/device/tokens:
+    post:
+      consumes:
+      - application/json
+      description: Registers a device FCM token for an admin to receive push notifications.
+        device_type must be android or ios.
+      parameters:
+      - description: Device registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            device_type:
+              type: string
+            fcm_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register admin device
+      tags:
+      - Admin Devices
+  /admin/jobs:
+    get:
+      description: Returns a paginated list of artisan jobs. Filterable by status,
+        artisan_id, and client_id.
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: Filter by job status
+        in: query
+        name: status
+        type: string
+      - description: Filter by artisan UUID
+        in: query
+        name: artisan_id
+        type: string
+      - description: Filter by client UUID
+        in: query
+        name: client_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adminModels.PaginatedResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List jobs
+      tags:
+      - Admin Jobs
+  /admin/settings:
+    get:
+      description: Returns all platform configuration settings.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/adminModels.PlatformSetting'
+                type: array
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List platform settings
+      tags:
+      - Admin Settings
+  /admin/settings/{key}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the value of a platform configuration key. Super admin
+        only.
+      parameters:
+      - description: Setting key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: New value
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.UpdateSettingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update platform setting
+      tags:
+      - Admin Settings
+  /admin/users:
+    get:
+      description: Returns a paginated list of all users. Supports filtering by active_role,
+        status, and a search term that matches first_name, last_name, email, or phone_number.
+        Soft-deleted users are excluded.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: per_page
+        type: integer
+      - description: 'Filter by role: client, artisan, owner'
+        in: query
+        name: role
+        type: string
+      - description: 'Filter by status: approved, pending, suspended, probation, rejected'
+        in: query
+        name: status
+        type: string
+      - description: Search by first_name, last_name, email, or phone_number
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/adminModels.PaginatedResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - Admin Users
+  /admin/users/{id}:
+    delete:
+      description: Permanently deletes a user account. This is a hard delete — use
+        with caution. Super admin only.
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete user
+      tags:
+      - Admin Users
+    get:
+      description: Returns full profile of a single user including bank details where
+        applicable. Role-specific data (artisan services, owner listings) will be
+        added as those modules are built.
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  user:
+                    type: object
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Admin Users
+  /admin/users/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Updates a user's account status. Valid values are approved, suspended,
+        probation, rejected, pending.
+      parameters:
+      - description: User UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/adminModels.UpdateUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user status
+      tags:
+      - Admin Users
+  /admin/withdrawals:
+    get:
+      description: 'Returns a paginated list of all withdrawals. Optionally filter
+        by status: pending, processing, successful, failed.'
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: per_page
+        type: integer
+      - description: 'Filter by status: pending, processing, successful, failed'
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List withdrawals
+      tags:
+      - Admin Finance
+  /admin/withdrawals/{id}/verify:
+    get:
+      description: Checks the live transfer status directly from Paystack for a given
+        withdrawal. Automatically syncs the DB status if the webhook was missed.
+      parameters:
+      - description: Withdrawal UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  our_status:
+                    type: string
+                  paystack_status:
+                    type: string
+                  transfer_ref:
+                    type: string
+                  withdrawal_id:
+                    type: string
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify withdrawal transfer
+      tags:
+      - Admin Finance
+  /auth/apple:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with an Apple identity token. Creates a new
+        account if none exists. Apple only sends email and name on the very first
+        sign-in — the client should pass them in the request body as a fallback for
+        subsequent logins.
+      parameters:
+      - description: Apple identity token. first_name, last_name, and email are only
+          available on first sign-in from Apple.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            first_name:
+              type: string
+            identity_token:
+              type: string
+            last_name:
+              type: string
+            role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+              user:
+                properties:
+                  active_role:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  phone_number:
+                    type: string
+                  status:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Apple Sign-In
+      tags:
+      - Auth
+  /auth/devices/register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a device FCM token for the authenticated user. device_type
+        must be android or ios.
+      parameters:
+      - description: Device registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            device_type:
+              type: string
+            fcm_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Register device for push notifications
+      tags:
+      - Devices
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Sends a password reset OTP to the user's email, phone number, or
+        recovery email. Provide exactly one of the three fields.
+      parameters:
+      - description: Provide exactly one field
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            phone_number:
+              type: string
+            recovery_email:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Forgot password
+      tags:
+      - Auth
+  /auth/forgot-password/reset:
+    patch:
+      consumes:
+      - application/json
+      description: Resets the user's password using the OTP sent via forgot-password.
+      parameters:
+      - description: Reset payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            confirm_password:
+              type: string
+            email:
+              type: string
+            new_password:
+              type: string
+            otp:
+              type: string
+            phone_number:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Reset password
+      tags:
+      - Auth
+  /auth/google:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with a Google ID token. Creates a new account
+        if none exists, or links to an existing account matched by google_sub or email.
+        Wallet and user_roles are created automatically for new users.
+      parameters:
+      - description: Google ID token and desired role (client, artisan, owner). Defaults
+          to client if omitted.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            id_token:
+              type: string
+            role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+              user:
+                properties:
+                  active_role:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  phone_number:
+                    type: string
+                  status:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Google Sign-In
+      tags:
+      - Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with email or phone number and password. Returns
+        a JWT token.
+      parameters:
+      - description: Login credentials — provide either email or phone_number
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+            phone_number:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+              user:
+                properties:
+                  active_role:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  phone_number:
+                    type: string
+                  status:
+                    type: string
+                  username:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Login
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      description: Clears the Bearer cookie and logs the user out.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - Auth
+  /auth/password:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the authenticated user's password. Requires the current
+        password for verification.
+      parameters:
+      - description: Current and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/authModels.UpdatePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update password
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      description: Issues a new JWT access token using a valid refresh token stored
+        in the refresh_token cookie. Also rotates the refresh token (old one is revoked,
+        new one is issued).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+              token:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Refresh access token
+      tags:
+      - Auth
+  /auth/resend-otp:
+    post:
+      consumes:
+      - application/json
+      description: Resends a new OTP to the user's email or phone number. Only works
+        if the contact is not yet verified.
+      parameters:
+      - description: Provide either email or phone_number
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            phone_number:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Resend OTP
+      tags:
+      - Auth
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new user account and sends an OTP for verification. Wallet is created automatically on registration. Username is required and must be unique.
+        If only email is provided, OTP is sent to email. If only phone_number is provided, OTP is sent to phone.
+        If both email and phone_number are provided, a first request (without otp_channel) returns status "choose_channel" — resend the full payload with otp_channel set to either "email" or "phone".
+      parameters:
+      - description: Registration payload. Provide email, phone_number, or both. If
+          both, include otp_channel ('email' or 'phone'). active_role must be client,
+          artisan, or owner
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            active_role:
+              type: string
+            email:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+            otp_channel:
+              type: string
+            password:
+              type: string
+            phone_number:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: status=choose_channel — returned when both email and phone
+            are provided but otp_channel is missing
+          schema:
+            properties:
+              message:
+                type: string
+              options:
+                items:
+                  type: string
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/users/account:
+    delete:
+      consumes:
+      - application/json
+      description: Soft-deletes the authenticated user's account. Requires password
+        confirmation for local accounts.
+      parameters:
+      - description: Password confirmation (required for local accounts)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete account
+      tags:
+      - Users
+  /auth/users/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads or replaces the authenticated user's profile picture. Accepts
+        multipart/form-data with an avatar file field.
+      parameters:
+      - description: Avatar image file
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              avatar:
+                $ref: '#/definitions/authModels.UserAvatar'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload avatar
+      tags:
+      - Users
+  /auth/users/check-username:
+    get:
+      description: Checks if a username is available. Uses a bloom filter — only hits
+        the DB on a probable match.
+      parameters:
+      - description: Username to check
+        in: query
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              available:
+                type: boolean
+              username:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Check username availability
+      tags:
+      - Users
+  /auth/users/contact-status:
+    get:
+      description: Returns whether the authenticated user has an email and/or phone
+        number on their account.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  email_verified:
+                    type: boolean
+                  has_email:
+                    type: boolean
+                  has_phone:
+                    type: boolean
+                  is_complete:
+                    type: boolean
+                  missing:
+                    type: string
+                  phone_verified:
+                    type: boolean
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get contact status
+      tags:
+      - Users
+  /auth/users/me:
+    get:
+      description: Returns the full profile of the authenticated user, including wallet
+        info and all activated roles.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/authModels.User'
+              roles:
+                items:
+                  type: string
+                type: array
+              status:
+                type: string
+              wallet:
+                properties:
+                  balance:
+                    type: number
+                  currency:
+                    type: string
+                  id:
+                    type: string
+                  is_active:
+                    type: boolean
+                  last_transaction_at:
+                    type: string
+                  user_id:
+                    type: string
+                  wallet_created_at:
+                    type: string
+                type: object
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Users
+  /auth/users/recovery-email:
+    delete:
+      description: Removes the recovery email from the authenticated user's account.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove recovery email
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Adds a recovery email to the user's account and sends an OTP to
+        verify it.
+      parameters:
+      - description: Recovery email address
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            recovery_email:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add recovery email
+      tags:
+      - Users
+  /auth/users/recovery-email/verify:
+    post:
+      consumes:
+      - application/json
+      description: Confirms the OTP sent to the recovery email to activate it.
+      parameters:
+      - description: OTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            otp:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify recovery email
+      tags:
+      - Users
+  /auth/users/switch-role:
+    patch:
+      consumes:
+      - application/json
+      description: Switches the user's active role. If switching to a role for the
+        first time, that role is added to the user's role list. Issues a new JWT with
+        the updated role.
+      parameters:
+      - description: 'Target role: client, artisan, or owner'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            role:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              active_role:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Switch active role
+      tags:
+      - Users
+  /auth/users/verify/add-contact:
+    post:
+      consumes:
+      - application/json
+      description: Adds an email or phone number to an account that was created with
+        only one contact.
+      parameters:
+      - description: Provide either email or phone_number
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            phone_number:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add secondary contact
+      tags:
+      - Users
+  /auth/users/verify/confirm-contact:
+    post:
+      consumes:
+      - application/json
+      description: Verifies the OTP sent to the newly added email or phone number.
+      parameters:
+      - description: OTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            otp:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm secondary contact
+      tags:
+      - Users
+  /auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verifies the OTP sent to the user's email or phone number during
+        registration. On success, issues a JWT and sends a role-specific welcome email.
+      parameters:
+      - description: OTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            otp:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+              token:
+                type: string
+              user:
+                properties:
+                  active_role:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  id:
+                    type: string
+                  last_name:
+                    type: string
+                  phone_number:
+                    type: string
+                  status:
+                    type: string
+                  username:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Verify OTP
+      tags:
+      - Auth
+  /notifications/{id}:
+    delete:
+      description: Permanently deletes a single notification. The notification must
+        belong to the authenticated user.
+      parameters:
+      - description: Notification UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete notification
+      tags:
+      - Notifications
+  /notifications/{id}/read:
+    patch:
+      description: Marks a single notification as read. The notification must belong
+        to the authenticated user.
+      parameters:
+      - description: Notification UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - Notifications
+  /notifications/all:
+    get:
+      description: Returns a paginated list of notifications for the authenticated
+        user. Supports filtering by category and read status. The unread_count in
+        the response always reflects the global unread count regardless of filters.
+      parameters:
+      - description: 'Filter by category: bookings, jobs, payments, reviews, system'
+        in: query
+        name: category
+        type: string
+      - description: 'Filter by read status: true or false'
+        in: query
+        name: is_read
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  properties:
+                    body:
+                      type: string
+                    created_at:
+                      type: string
+                    data:
+                      type: object
+                    id:
+                      type: string
+                    is_read:
+                      type: boolean
+                    title:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+              unread_count:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get notifications
+      tags:
+      - Notifications
+  /notifications/read-all:
+    patch:
+      description: Marks all unread notifications as read for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+              updated:
+                type: integer
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
