@@ -8,6 +8,7 @@ import (
 
 var allowedOrigins = []string{
 	"http://localhost:3000",
+	"https://leti-backend.onrender.com",
 }
 
 func Cors(next http.Handler) http.Handler {
