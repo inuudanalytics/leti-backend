@@ -28,6 +28,7 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       max-width: 520px;
       margin: 48px auto;
       padding: 0 16px;
+      width: 100%%;
     }
     .logo {
       text-align: center;
@@ -43,13 +44,14 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       border-radius: 16px;
       overflow: hidden;
       border: 1px solid #ede8f5;
+      width: 100%%;
     }
     .accent-bar {
       height: 4px;
       background: linear-gradient(90deg, #C103FF, #D901F7, #2F0261);
     }
     .body {
-      padding: 36px 40px 32px;
+      padding: 32px 28px;
     }
     h2 {
       font-size: 18px;
@@ -67,7 +69,7 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       background: #faf8ff;
       border: 1px solid #e8dff7;
       border-radius: 12px;
-      padding: 24px;
+      padding: 24px 16px;
       text-align: center;
       margin-bottom: 20px;
     }
@@ -82,9 +84,10 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
     .otp-code {
       font-size: 38px;
       font-weight: 600;
-      letter-spacing: 12px;
+      letter-spacing: 10px;
       color: #2F0261;
       font-family: 'Courier New', monospace;
+      word-break: break-all;
     }
     .expiry {
       font-size: 13px;
@@ -107,7 +110,7 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       margin: 0;
     }
     .footer {
-      padding: 20px 40px;
+      padding: 20px 28px;
       text-align: center;
       border-top: 1px solid #f0ebfa;
     }
@@ -115,6 +118,14 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       font-size: 12px;
       color: #c0b8d4;
       margin: 0;
+    }
+
+    @media only screen and (max-width: 480px) {
+      .wrap { margin: 16px auto; padding: 0 8px; }
+      .body { padding: 24px 16px; }
+      .footer { padding: 16px; }
+      .logo img { height: 200px; }
+      .otp-code { font-size: 28px; letter-spacing: 6px; }
     }
   </style>
 </head>

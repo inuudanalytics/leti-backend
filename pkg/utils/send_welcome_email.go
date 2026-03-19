@@ -17,16 +17,16 @@ func letiEmailShell(title, bodyContent string, year int) string {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background-color: #f7f5fb; color: #1a1a2e; }
-    .wrap { max-width: 520px; margin: 48px auto; padding: 0 16px; }
+    .wrap { max-width: 520px; margin: 48px auto; padding: 0 16px; width: 100%%; }
     .logo { text-align: center; margin-bottom: 28px; }
     .logo img { height: 200px; width: auto; display: inline-block; }
-    .card { background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #ede8f5; }
+    .card { background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #ede8f5; width: 100%%; }
     .accent-bar { height: 4px; background: linear-gradient(90deg, #C103FF, #D901F7, #2F0261); }
-    .body { padding: 36px 40px 32px; }
+    .body { padding: 32px 28px; }
     h2 { font-size: 20px; font-weight: 600; color: #1a1a2e; margin-bottom: 12px; }
     p { font-size: 14px; line-height: 1.8; color: #5a5a7a; margin-bottom: 20px; }
     .features { border: 1px solid #ede8f5; border-radius: 12px; overflow: hidden; margin-bottom: 28px; }
-    .feature-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border-bottom: 1px solid #f5f0fc; }
+    .feature-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #f5f0fc; }
     .feature-item:last-child { border-bottom: none; }
     .feature-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
     .feature-text { font-size: 13px; color: #4a4a6a; line-height: 1.5; margin: 0; }
@@ -40,14 +40,22 @@ func letiEmailShell(title, bodyContent string, year int) string {
     }
     .tip-box {
       background: #faf8ff; border: 1px solid #e8dff7;
-      border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 24px;
     }
     .tip-box p { font-size: 13px; color: #6a5a8a; margin: 0; line-height: 1.6; }
     .tip-box strong { color: #2F0261; }
     .divider { height: 1px; background: #f0ebfa; margin-bottom: 20px; }
     .note { font-size: 12px; color: #aaa0be; line-height: 1.6; margin: 0; text-align: center; }
-    .footer { padding: 20px 40px; text-align: center; border-top: 1px solid #f0ebfa; }
+    .footer { padding: 20px 28px; text-align: center; border-top: 1px solid #f0ebfa; }
     .footer p { font-size: 12px; color: #c0b8d4; margin: 0; }
+
+    @media only screen and (max-width: 480px) {
+      .wrap { margin: 16px auto; padding: 0 8px; }
+      .body { padding: 24px 16px; }
+      .footer { padding: 16px; }
+      h2 { font-size: 18px; }
+      .logo img { height: 200px; }
+    }
   </style>
 </head>
 <body>
