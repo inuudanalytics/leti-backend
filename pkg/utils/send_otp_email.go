@@ -33,14 +33,10 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       text-align: center;
       margin-bottom: 28px;
     }
-    .logo span {
-      font-size: 22px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #C103FF, #D901F7, #2F0261);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.5px;
+    .logo img {
+      height: 36px;
+      width: auto;
+      display: inline-block;
     }
     .card {
       background: #ffffff;
@@ -124,7 +120,9 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
 </head>
 <body>
   <div class="wrap">
-    <div class="logo"><span>leti</span></div>
+    <div class="logo">
+      <img src="https://res.cloudinary.com/dya9hsgjs/image/upload/v1773944719/letilogo_g5xf5i.png" alt="Leti" />
+    </div>
     <div class="card">
       <div class="accent-bar"></div>
       <div class="body">
