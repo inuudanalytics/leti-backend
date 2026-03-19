@@ -19,7 +19,7 @@ func letiEmailShell(title, bodyContent string, year int) string {
     body { font-family: 'DM Sans', sans-serif; background-color: #f7f5fb; color: #1a1a2e; }
     .wrap { max-width: 520px; margin: 48px auto; padding: 0 16px; }
     .logo { text-align: center; margin-bottom: 28px; }
-    .logo img { height: 36px; width: auto; display: inline-block; }
+    .logo img { height: 200px; width: auto; display: inline-block; }
     .card { background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #ede8f5; }
     .accent-bar { height: 4px; background: linear-gradient(90deg, #C103FF, #D901F7, #2F0261); }
     .body { padding: 36px 40px 32px; }

@@ -34,7 +34,7 @@ func SendOTPEmail(to, username, otp string, expiry time.Time) error {
       margin-bottom: 28px;
     }
     .logo img {
-      height: 36px;
+      height: 200px;
       width: auto;
       display: inline-block;
     }
