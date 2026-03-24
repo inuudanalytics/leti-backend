@@ -50,6 +50,7 @@ func cleanupRefreshTokens() {
 		DELETE FROM refresh_tokens
 		WHERE expires_at < NOW() OR revoked_at IS NOT NULL
 	`)
+
 	if err != nil {
 		utils.Logger.Errorf("cleanup cron: failed to delete expired refresh tokens: %v", err)
 		return

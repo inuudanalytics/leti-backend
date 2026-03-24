@@ -18,6 +18,7 @@ import (
 
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -576,4 +577,17 @@ func NullableString(s string) interface{} {
 		return nil
 	}
 	return s
+}
+
+// slotIsBooked is a helper used in booking creation to check slot conflicts
+// under a transaction lock.
+func SlotIsBooked(ctx context.Context, tx pgx.Tx, artisanID uuid.UUID, categoryID int, date, startTime string) (bool, error) {
+	var count int
+	err := tx.QueryRow(ctx, `
+		SELECT COUNT(*) FROM artisan_bookings
+		WHERE artisan_id = $1 AND category_id = $2
+		  AND booking_date = $3 AND start_time = $4
+		  AND status IN ('pending', 'confirmed')
+	`, artisanID, categoryID, date, startTime).Scan(&count)
+	return count > 0, err
 }

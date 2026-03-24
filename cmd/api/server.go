@@ -5,11 +5,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
+	"leti_server/internal/api/handlers"
+	chatHandler "leti_server/internal/api/handlers/chat"
+	paymentwebhook "leti_server/internal/api/handlers/payment_webhook"
 	mw "leti_server/internal/api/middlewares"
 	"leti_server/internal/api/routers"
+	chathub "leti_server/internal/chathub"
 	cronjobs "leti_server/internal/cron_jobs"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/cache"
@@ -39,11 +44,13 @@ func main() {
 	if err := sqlconnect.ConnectDb(); err != nil {
 		utils.Logger.Fatal("DB connection failed: ", err)
 	}
+	db := sqlconnect.DB
 
 	if err := cache.InitRedis(); err != nil {
 		utils.Logger.Fatal("Redis connection failed: ", err)
 	}
 
+	// Seed bloom filter
 	go func() {
 		ctx := context.Background()
 		usernames, err := sqlconnect.GetAllUsernames(ctx)
@@ -56,12 +63,29 @@ func main() {
 
 	config.InitFirebase()
 
-	// Start cron jobs
+	// ================= CHAT SETUP =================
+	chatHub := chathub.New()
+	go chatHub.Run()
+	chatHandler.Hub = chatHub
+	chathub.PushNotifier = handlers.SendPushToUser
+
+	// ================= WEBHOOK WORKER =================
+	webhookCtx, webhookCancel := context.WithCancel(context.Background())
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		paymentwebhook.StartWebhookRetryWorker(webhookCtx, db)
+	}()
+
+	// ================= CRON JOBS =================
 	cleanupCron := cronjobs.StartCronJobs()
 	defer cleanupCron.Stop()
 
 	port := os.Getenv("SERVER_PORT")
 
+	// ================= MIDDLEWARES =================
 	rl := mw.NewRateLimiter(5000, time.Minute)
 
 	hppOptions := mw.HPPOptions{
@@ -75,7 +99,8 @@ func main() {
 			"school_nearby", "min_price", "max_price", "min_views", "max_views",
 			"min_rating", "max_rating", "min_rating_quantity", "max_rating_quantity",
 			"title_search", "description_search", "address_search",
-			"created_after", "created_before", "updated_after", "updated_before", "token", "category", "store_id", "part_id", "order_id",
+			"created_after", "created_before", "updated_after", "updated_before",
+			"token", "category", "store_id", "part_id", "order_id",
 		},
 	}
 
@@ -112,6 +137,7 @@ func main() {
 		rl.Middleware,
 	)
 
+	// ================= SERVER =================
 	server := &http.Server{
 		Addr:    port,
 		Handler: secureMux,
@@ -124,6 +150,7 @@ func main() {
 		}
 	}()
 
+	// ================= GRACEFUL SHUTDOWN =================
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
@@ -132,11 +159,15 @@ func main() {
 
 	httpCtx, httpCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer httpCancel()
+
 	if err := server.Shutdown(httpCtx); err != nil {
 		utils.Logger.Fatalf("Server forced to shutdown: %v", err)
 	}
 
+	// Stop webhook worker
 	utils.Logger.Info("Stopping webhook retry worker...")
+	webhookCancel()
+	wg.Wait()
 	utils.Logger.Info("Webhook retry worker stopped")
 
 	sqlconnect.CloseDb()

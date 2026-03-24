@@ -18,6 +18,20 @@ func MainRouter() *http.ServeMux {
 
 	apiMux.Handle("/notifications/", notificationsRouter())
 
+	apiMux.Handle("/chat/", chatRouter())
+
+	apiMux.Handle("/bookings/", bookingRouter())
+
+	apiMux.Handle("/wallets/", walletRouter())
+
+	apiMux.Handle("/webhooks/", webhookRouter())
+
+	apiMux.Handle("/artisan-reviews/", artisanReviewsRouter())
+
+	apiMux.Handle("/artisan/", artisanProfileRouter())
+
+	apiMux.Handle("/profile/", profileSettingsRouter())
+
 	apiMux.Handle("/admin/", adminRouter())
 
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", apiMux))

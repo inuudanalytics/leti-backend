@@ -6,11 +6,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
+	"leti_server/internal/api/handlers"
+	chatHandler "leti_server/internal/api/handlers/chat"
+	paymentwebhook "leti_server/internal/api/handlers/payment_webhook"
 	mw "leti_server/internal/api/middlewares"
 	"leti_server/internal/api/routers"
+	chathub "leti_server/internal/chathub"
 	cronjobs "leti_server/internal/cron_jobs"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/cache"
@@ -39,6 +44,7 @@ func main() {
 	if err := sqlconnect.ConnectDb(); err != nil {
 		utils.Logger.Fatal("DB connection failed: ", err)
 	}
+	db := sqlconnect.DB
 
 	if err := cache.InitRedis(); err != nil {
 		utils.Logger.Fatal("Redis connection failed: ", err)
@@ -56,9 +62,23 @@ func main() {
 
 	config.InitFirebase()
 
+	chatHub := chathub.New()
+	go chatHub.Run()
+	chatHandler.Hub = chatHub
+	chathub.PushNotifier = handlers.SendPushToUser
+
+	webhookCtx, webhookCancel := context.WithCancel(context.Background())
+
 	// Start cron jobs
 	cleanupCron := cronjobs.StartCronJobs()
 	defer cleanupCron.Stop()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		paymentwebhook.StartWebhookRetryWorker(webhookCtx, db)
+	}()
 
 	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS10,
@@ -86,8 +106,6 @@ func main() {
 		"/api/v1/agents/reset-password/reset",
 		"/api/v1/webhooks/paystack",
 		"/api/v1/wallets/verify/payment",
-		"/api/v1/marketplace/parts",
-		"/api/v1/marketplace/stores",
 	)
 
 	secureMux := jwtMiddleware(mw.SecurityHeaders(mw.ResponseTimeMiddleware(router)))
@@ -118,7 +136,8 @@ func main() {
 	}
 
 	utils.Logger.Info("Stopping webhook retry worker...")
-
+	webhookCancel()
+	wg.Wait()
 	utils.Logger.Info("Webhook retry worker stopped")
 
 	sqlconnect.CloseDb()

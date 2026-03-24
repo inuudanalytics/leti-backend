@@ -144,6 +144,92 @@ definitions:
         description: approved | suspended | probation | rejected | pending
         type: string
     type: object
+  artisanprofilesettings.ArtisanCategory:
+    properties:
+      artisan_id:
+        type: string
+      category:
+        $ref: '#/definitions/artisanprofilesettings.CategoryInfo'
+      created_at:
+        type: string
+      id:
+        type: string
+    type: object
+  artisanprofilesettings.CategoryInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  artisanprofilesettings.PortfolioImage:
+    properties:
+      artisan_id:
+        type: string
+      caption:
+        type: string
+      category:
+        allOf:
+        - $ref: '#/definitions/artisanprofilesettings.CategoryInfo'
+        description: populated
+      created_at:
+        type: string
+      id:
+        type: string
+      image_url:
+        type: string
+      public_id:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  artisanprofilesettings.Service:
+    properties:
+      artisan_id:
+        type: string
+      base_price:
+        type: number
+      category_id:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  artisanprofilesettings.ServiceOption:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      label:
+        type: string
+      price_modifier:
+        type: number
+      service_id:
+        type: string
+      variation_type_id:
+        type: integer
+      variation_type_label:
+        type: string
+    type: object
+  artisanprofilesettings.VariationType:
+    properties:
+      category_id:
+        type: integer
+      id:
+        type: integer
+      label:
+        type: string
+    type: object
   authModels.UpdatePasswordRequest:
     properties:
       current_password:
@@ -209,6 +295,246 @@ definitions:
       public_id:
         type: string
       url:
+        type: string
+    type: object
+  booking.ArtisanAvailabilityResponse:
+    properties:
+      overrides:
+        items:
+          $ref: '#/definitions/booking.AvailabilityOverride'
+        type: array
+      status:
+        type: string
+      weekly:
+        items:
+          $ref: '#/definitions/booking.Availability'
+        type: array
+    type: object
+  booking.Availability:
+    properties:
+      artisan_id:
+        type: string
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      start_time:
+        type: string
+      updated_at:
+        type: string
+      weekday:
+        type: integer
+    type: object
+  booking.AvailabilityListResponse:
+    properties:
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/booking.Availability'
+        type: array
+      status:
+        type: string
+    type: object
+  booking.AvailabilityOverride:
+    properties:
+      artisan_id:
+        type: string
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      is_available:
+        type: boolean
+      note:
+        type: string
+      override_date:
+        description: '"YYYY-MM-DD"'
+        type: string
+    type: object
+  booking.AvailabilityOverrideResponse:
+    properties:
+      message:
+        type: string
+      override:
+        $ref: '#/definitions/booking.AvailabilityOverride'
+      status:
+        type: string
+    type: object
+  booking.AvailabilityResponse:
+    properties:
+      availability:
+        $ref: '#/definitions/booking.Availability'
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  booking.AvailableSlot:
+    properties:
+      available:
+        type: boolean
+      date:
+        type: string
+      end_time:
+        type: string
+      start_time:
+        type: string
+    type: object
+  booking.AvailableSlotsResponse:
+    properties:
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/booking.AvailableSlot'
+        type: array
+      status:
+        type: string
+    type: object
+  booking.Booking:
+    properties:
+      address:
+        type: string
+      artisan_id:
+        type: string
+      booking_date:
+        type: string
+      cancelled_at:
+        type: string
+      cancelled_by:
+        type: string
+      category_id:
+        type: integer
+      client_id:
+        type: string
+      completed_at:
+        type: string
+      confirmed_at:
+        type: string
+      created_at:
+        type: string
+      declined_at:
+        type: string
+      end_time:
+        type: string
+      id:
+        type: string
+      note:
+        type: string
+      payment_method:
+        type: string
+      payment_reference:
+        type: string
+      payment_status:
+        type: string
+      service_id:
+        type: string
+      service_option_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      total_price:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  chat.Conversation:
+    properties:
+      artisan_id:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      owner_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  chat.Message:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      msg_type:
+        type: string
+      sender_id:
+        type: string
+      sender_role:
+        type: string
+    type: object
+  profilesettings.Address:
+    properties:
+      address_type:
+        type: string
+      city:
+        type: string
+      country:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_primary:
+        type: boolean
+      label:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      owner_id:
+        type: string
+      state:
+        type: string
+      street:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  profilesettings.BankDetail:
+    properties:
+      account_name:
+        type: string
+      account_number:
+        type: string
+      bank_code:
+        type: string
+      bank_name:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_primary:
+        type: boolean
+      owner_id:
+        type: string
+      recipient_code:
+        type: string
+      updated_at:
         type: string
     type: object
 host: leti-backend.onrender.com
@@ -1241,6 +1567,1598 @@ paths:
       summary: Verify withdrawal transfer
       tags:
       - Admin Finance
+  /artisan/address:
+    get:
+      description: Returns all addresses for the authenticated artisan.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.Address'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get artisan addresses
+      tags:
+      - Artisan Address
+    post:
+      consumes:
+      - application/json
+      description: Adds a home or work address for the authenticated artisan. Only
+        one home address is allowed (enforced by DB constraint). Multiple work addresses
+        are allowed; the first work address is automatically set as primary.
+      parameters:
+      - description: Address payload. address_type must be 'home' or 'work'. is_primary
+          only applies to work addresses.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address_type:
+              type: string
+            city:
+              type: string
+            country:
+              type: string
+            is_primary:
+              type: boolean
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add artisan address
+      tags:
+      - Artisan Address
+  /artisan/address/{id}:
+    delete:
+      description: Deletes a specific address for the authenticated artisan. Cannot
+        delete a primary work address if other work addresses exist — set another
+        as primary first.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete artisan address
+      tags:
+      - Artisan Address
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a specific address for the authenticated artisan.
+        Only provided fields are updated. Coordinates are updated together — both
+        latitude and longitude must be provided if updating location.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update artisan address
+      tags:
+      - Artisan Address
+  /artisan/address/{id}/primary:
+    patch:
+      description: Sets a work address as the primary work address for the authenticated
+        artisan. Only work addresses can be set as primary.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set artisan primary work address
+      tags:
+      - Artisan Address
+  /artisan/availability:
+    get:
+      description: Returns all active recurring availability windows for the authenticated
+        artisan, optionally filtered by category.
+      parameters:
+      - description: Filter by category
+        in: query
+        name: category_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.AvailabilityListResponse'
+      security:
+      - BearerAuth: []
+      summary: Get own weekly availability
+      tags:
+      - Artisan / Availability
+    post:
+      consumes:
+      - application/json
+      description: Adds or updates a recurring weekly time window for the authenticated
+        artisan within a service category. Multiple windows per day are allowed (e.g.
+        morning + afternoon). If a window with the same artisan/category/weekday/start_time
+        already exists it is updated; otherwise a new row is inserted.
+      parameters:
+      - description: 'weekday: 0=Sun…6=Sat; times in HH:MM format'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            category_id:
+              type: integer
+            end_time:
+              type: string
+            start_time:
+              type: string
+            weekday:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.AvailabilityResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set weekly availability window
+      tags:
+      - Artisan / Availability
+  /artisan/availability/{id}:
+    delete:
+      description: Deactivates a recurring availability window by ID. Existing confirmed
+        bookings are NOT affected.
+      parameters:
+      - description: Availability UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove a weekly availability window
+      tags:
+      - Artisan / Availability
+  /artisan/availability/overrides:
+    post:
+      consumes:
+      - application/json
+      description: Creates or replaces a date-level override for the artisan. Set
+        is_available=false to block a day (e.g. public holiday, personal day). Set
+        is_available=true to force-open a day that would normally be off.
+      parameters:
+      - description: date in YYYY-MM-DD format
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            category_id:
+              type: integer
+            date:
+              type: string
+            is_available:
+              type: boolean
+            note:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.AvailabilityOverrideResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Block or open a specific date
+      tags:
+      - Artisan / Availability
+  /artisan/bank:
+    get:
+      description: Returns all bank accounts for the authenticated artisan, primary
+        account first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.BankDetail'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get artisan bank accounts
+      tags:
+      - Artisan Bank Details
+    post:
+      consumes:
+      - application/json
+      description: Adds a bank account for the authenticated artisan. The first account
+        is automatically set as primary. All subsequent accounts must share the same
+        account name as the primary (to prevent identity fraud). A Paystack transfer
+        recipient is created for each account.
+      parameters:
+      - description: Bank account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_name:
+              type: string
+            account_number:
+              type: string
+            bank_code:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.BankDetail'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add artisan bank account
+      tags:
+      - Artisan Bank Details
+  /artisan/bank/{id}:
+    delete:
+      description: Deletes a bank account. Cannot delete the only account or the primary
+        account (set another as primary first).
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete artisan bank account
+      tags:
+      - Artisan Bank Details
+  /artisan/bank/{id}/primary:
+    patch:
+      description: Marks a specific bank account as the artisan's primary payout account.
+        The target account name must match the current primary account name.
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set artisan primary bank account
+      tags:
+      - Artisan Bank Details
+  /artisan/categories:
+    get:
+      description: Returns the categories registered on the authenticated artisan's
+        profile, with category details populated.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.ArtisanCategory'
+                type: array
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get own registered categories
+      tags:
+      - Artisan Profile
+    post:
+      consumes:
+      - application/json
+      description: Registers a job category on the artisan's profile. An artisan can
+        have at most 2 categories. The DB enforces this with a trigger.
+      parameters:
+      - description: Category ID (integer)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            category_id:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.ArtisanCategory'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a service category
+      tags:
+      - Artisan Profile
+  /artisan/categories/{categoryId}:
+    delete:
+      description: Removes a category from the artisan's profile. All portfolio images
+        and services tied to that category are cascade-deleted. Will fail if any service
+        under this category has active bookings.
+      parameters:
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove a service category
+      tags:
+      - Artisan Profile
+  /artisan/categories/{categoryId}/portfolio:
+    get:
+      description: Returns all portfolio images the authenticated artisan has uploaded
+        for a given category.
+      parameters:
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
+                type: array
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get own portfolio images for a category
+      tags:
+      - Artisan Profile
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads up to 5 sample-work images for one of the artisan's registered
+        categories. Send as multipart/form-data with field name "images". The DB enforces
+        a per-category limit of 5 images.
+      parameters:
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      - description: Image file(s)
+        in: formData
+        name: images
+        required: true
+        type: file
+      - description: JSON array of captions e.g. [\
+        in: formData
+        name: captions
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
+                type: array
+              message:
+                type: string
+              status:
+                type: string
+              uploaded:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload portfolio images for a category
+      tags:
+      - Artisan Profile
+  /artisan/categories/{categoryId}/portfolio/{imageId}:
+    delete:
+      description: Deletes a single portfolio image and removes it from Cloudinary.
+      parameters:
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      - description: Image UUID
+        in: path
+        name: imageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a portfolio image
+      tags:
+      - Artisan Profile
+    patch:
+      consumes:
+      - application/json
+      description: Updates the caption or sort_order of an existing portfolio image.
+      parameters:
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      - description: Image UUID
+        in: path
+        name: imageId
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            caption:
+              type: string
+            sort_order:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a portfolio image
+      tags:
+      - Artisan Profile
+  /artisan/services:
+    get:
+      description: Returns all services created by the authenticated artisan, optionally
+        filtered by category_id.
+      parameters:
+      - description: Filter by category
+        in: query
+        name: category_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.Service'
+                type: array
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get own services
+      tags:
+      - Artisan Services
+    post:
+      consumes:
+      - application/json
+      description: Artisan creates a new service listing under one of their registered
+        categories. The artisan must already have the category registered in artisan_categories.
+      parameters:
+      - description: Service details
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            base_price:
+              type: number
+            category_id:
+              type: integer
+            description:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.Service'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a service
+      tags:
+      - Artisan Services
+  /artisan/services/{id}:
+    delete:
+      description: Permanently deletes a service and all its options. Will fail if
+        the service is referenced by a confirmed or pending booking.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a service
+      tags:
+      - Artisan Services
+    patch:
+      consumes:
+      - application/json
+      description: Artisan updates the name, description, base price, or active status
+        of one of their services.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            base_price:
+              type: number
+            description:
+              type: string
+            is_active:
+              type: boolean
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.Service'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a service
+      tags:
+      - Artisan Services
+  /artisan/services/{id}/options:
+    get:
+      description: Returns all pricing options configured for a service, grouped by
+        variation type. Works for both the artisan owner and public clients.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get options for a service
+      tags:
+      - Artisan Services
+    post:
+      consumes:
+      - application/json
+      description: Artisan adds a variation option to their service. Each option references
+        a platform variation type (e.g. "Hair length") and carries the artisan's own
+        label (e.g. "Extra long") and a price modifier on top of the base price.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Option details
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            label:
+              type: string
+            price_modifier:
+              type: number
+            variation_type_id:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.ServiceOption'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add a pricing option to a service
+      tags:
+      - Artisan Services
+  /artisan/services/{id}/options/{optionId}:
+    delete:
+      description: Removes a pricing option from a service.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Option UUID
+        in: path
+        name: optionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a service option
+      tags:
+      - Artisan Services
+    patch:
+      consumes:
+      - application/json
+      description: Artisan updates the label or price modifier of an existing service
+        option.
+      parameters:
+      - description: Service UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Option UUID
+        in: path
+        name: optionId
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            label:
+              type: string
+            price_modifier:
+              type: number
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/artisanprofilesettings.ServiceOption'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a service option
+      tags:
+      - Artisan Services
+  /artisans/{id}/availability:
+    get:
+      description: Returns the recurring weekly schedule and any upcoming date overrides
+        for a specific artisan/category. Useful for displaying a calendar UI before
+        choosing a date.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category ID
+        in: query
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.ArtisanAvailabilityResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get an artisan's public availability schedule
+      tags:
+      - Booking
+  /artisans/{id}/available-slots:
+    get:
+      description: 'Returns a day-by-day availability breakdown for an artisan within
+        a given date range (max 60 days). For each date: checks the weekday recurring
+        schedule, applies any date-level overrides, then subtracts confirmed/pending
+        bookings to determine if the slot is still open.'
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category ID
+        in: query
+        name: category_id
+        required: true
+        type: integer
+      - description: Start date YYYY-MM-DD (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: End date YYYY-MM-DD (inclusive, max 60 days from from)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.AvailableSlotsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get available slots for an artisan
+      tags:
+      - Booking
+  /artisans/{id}/categories:
+    get:
+      description: Returns the categories registered on a specific artisan's profile,
+        with category details populated.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.ArtisanCategory'
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get an artisan's categories (public)
+      tags:
+      - Artisan Profile
+  /artisans/{id}/categories/{categoryId}/portfolio:
+    get:
+      description: Returns all portfolio images for a specific artisan and category.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category ID (integer)
+        in: path
+        name: categoryId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
+                type: array
+              status:
+                type: string
+            type: object
+      summary: Get an artisan's portfolio images for a category (public)
+      tags:
+      - Artisan Profile
+  /artisans/{id}/review:
+    post:
+      consumes:
+      - application/json
+      description: A client can leave a rating and comment for an artisan after a
+        completed and paid booking. Only one review per client per artisan — subsequent
+        calls update the existing review.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: rating 1–5
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            comment:
+              type: string
+            rating:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  avg_rating:
+                    type: number
+                  rating:
+                    type: integer
+                  review_id:
+                    type: string
+                  total_reviews:
+                    type: integer
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Leave a review for an artisan
+      tags:
+      - Reviews
+  /artisans/{id}/reviews:
+    get:
+      description: Returns paginated reviews for a specific artisan, including a rating
+        summary breakdown and any replies on each review.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+              summary:
+                type: object
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get reviews for an artisan
+      tags:
+      - Reviews
+  /artisans/{id}/services:
+    get:
+      description: Returns all active services for a specific artisan. Clients use
+        this to browse before creating a booking.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by category
+        in: query
+        name: category_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get an artisan's services (public)
+      tags:
+      - Artisan Services
   /auth/apple:
     post:
       consumes:
@@ -2375,6 +4293,1384 @@ paths:
       summary: Verify OTP
       tags:
       - Auth
+  /bank/list:
+    get:
+      description: Returns a list of all banks supported by Paystack (name and code
+        only). Available to all roles.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  properties:
+                    code:
+                      type: string
+                    name:
+                      type: string
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get supported bank list
+      tags:
+      - Bank Details
+  /bank/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a bank account number against a bank via Paystack. Available
+        to artisan, client, and owner roles.
+      parameters:
+      - description: Bank verification payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_number:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify bank account
+      tags:
+      - Bank Details
+  /bookings:
+    get:
+      description: Returns a paginated list of bookings. Clients see bookings they
+        created; artisans see bookings assigned to them. Optionally filter by status.
+      parameters:
+      - description: 'Filter: pending|confirmed|declined|cancelled|completed|disputed'
+        in: query
+        name: status
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/booking.Booking'
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List bookings
+      tags:
+      - Booking
+    post:
+      consumes:
+      - application/json
+      description: Creates a booking request for a specific artisan, date, and time
+        slot. The slot must fall within the artisan's active availability window and
+        must not already be booked. The booking starts in 'pending' status — the artisan
+        must confirm before any payment is collected. Payment method is chosen at
+        payment time (POST /bookings/{id}/pay), not here.
+      parameters:
+      - description: Booking request
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address:
+              type: string
+            artisan_id:
+              type: string
+            booking_date:
+              type: string
+            category_id:
+              type: integer
+            note:
+              type: string
+            service_id:
+              type: string
+            service_option_id:
+              type: string
+            start_time:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              booking:
+                $ref: '#/definitions/booking.Booking'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Request a booking
+      tags:
+      - Booking
+  /bookings/{id}:
+    get:
+      description: Returns full detail for a booking. The caller must be the client
+        or the artisan on the booking.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/booking.Booking'
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single booking
+      tags:
+      - Booking
+  /bookings/{id}/cancel:
+    patch:
+      description: Either the client or the artisan can cancel a booking that is pending
+        or confirmed. If payment was already made, a refund is triggered separately
+        via the escrow/payment service.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel a booking
+      tags:
+      - Booking
+  /bookings/{id}/complete:
+    patch:
+      description: Artisan marks a confirmed booking as completed after delivering
+        the service. The escrow payment is released to the artisan at this point.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              booking:
+                $ref: '#/definitions/booking.Booking'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark a booking as completed (artisan only)
+      tags:
+      - Booking
+  /bookings/{id}/confirm:
+    patch:
+      description: Artisan confirms a pending booking. The booking moves to 'confirmed'
+        and the client is notified to complete payment. No money is collected here.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              booking:
+                $ref: '#/definitions/booking.Booking'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm a booking (artisan only)
+      tags:
+      - Booking
+  /bookings/{id}/decline:
+    patch:
+      description: Artisan declines a pending booking. No payment was collected so
+        no refund is needed.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Decline a booking (artisan only)
+      tags:
+      - Booking
+  /bookings/{id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Initiates payment for a booking that has been confirmed by the
+        artisan. Supports wallet (instant) and Paystack (redirect). The full amount
+        is held in escrow and only released to the artisan after the booking is marked
+        completed. Only callable by the client on the booking.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'payment_method: wallet | paystack'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            payment_method:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              commission:
+                type: number
+              escrow_id:
+                type: string
+              message:
+                type: string
+              payout:
+                type: number
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "402":
+          description: Payment Required
+          schema:
+            properties:
+              available:
+                type: number
+              code:
+                type: string
+              error:
+                type: string
+              required:
+                type: number
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Pay for a confirmed booking
+      tags:
+      - Booking
+  /categories:
+    get:
+      description: Returns all platform job categories. Used by clients and artisans
+        to browse available service types.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.CategoryInfo'
+                type: array
+              status:
+                type: string
+            type: object
+      summary: List all job categories
+      tags:
+      - Categories
+  /categories/{id}/variation-types:
+    get:
+      description: Returns the platform-defined variation types for a job category.
+        Artisans use these to configure their service pricing options.
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.VariationType'
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get variation types for a category
+      tags:
+      - Artisan Services
+  /chat/conversations:
+    get:
+      description: Returns a paginated list of all conversations for the authenticated
+        user, with the last message preview and unread count per conversation.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  properties:
+                    artisan:
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    id:
+                      type: string
+                    last_message:
+                      properties:
+                        content:
+                          type: string
+                        created_at:
+                          type: string
+                        msg_type:
+                          type: string
+                      type: object
+                    owner:
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    unread_count:
+                      type: integer
+                    updated_at:
+                      type: string
+                  type: object
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List conversations
+      tags:
+      - Chat
+    post:
+      consumes:
+      - application/json
+      description: Creates a new conversation between a client and an artisan for
+        a specific job, or retrieves the existing one if it already exists. Only the
+        client who owns the job can start the conversation.
+      parameters:
+      - description: Artisan UUID and Job UUID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            artisan_id:
+              type: string
+            job_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              conversation:
+                $ref: '#/definitions/chat.Conversation'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start or retrieve a conversation
+      tags:
+      - Chat
+  /chat/conversations/{id}:
+    delete:
+      description: Soft-deletes a conversation. Only the client (owner) who created
+        it can delete it. The conversation and its messages remain in the database
+        for audit purposes.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a conversation
+      tags:
+      - Chat
+  /chat/conversations/{id}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads 1–5 images to Cloudinary and inserts each as an image message
+        in the conversation. Both participants receive a WebSocket push for each image.
+        The recipient also gets a push notification.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image file(s) — max 5
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              messages:
+                items:
+                  $ref: '#/definitions/chat.Message'
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send image message(s)
+      tags:
+      - Chat
+  /chat/conversations/{id}/messages:
+    get:
+      description: Returns paginated message history for a conversation. The caller
+        must be a participant. Supports limit and offset query params.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Max messages to return (default 50, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Number of messages to skip (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/chat.Message'
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get message history
+      tags:
+      - Chat
+  /chat/conversations/{id}/read:
+    patch:
+      description: Marks all unread messages in a conversation (sent by the other
+        party) as read. Also notifies the sender via WebSocket that their messages
+        were read.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark messages as read
+      tags:
+      - Chat
+  /client/address:
+    get:
+      description: Returns all addresses for the authenticated client.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.Address'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get client addresses
+      tags:
+      - Client Address
+    post:
+      consumes:
+      - application/json
+      description: Adds a home or work address for the authenticated client. Only
+        one home address is allowed (enforced by DB constraint). Multiple work addresses
+        are allowed; the first work address is automatically set as primary.
+      parameters:
+      - description: Address payload. address_type must be 'home' or 'work'. is_primary
+          only applies to work addresses.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address_type:
+              type: string
+            city:
+              type: string
+            country:
+              type: string
+            is_primary:
+              type: boolean
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add client address
+      tags:
+      - Client Address
+  /client/address/{id}:
+    delete:
+      description: Deletes a specific address for the authenticated client. Cannot
+        delete a primary work address if other work addresses exist — set another
+        as primary first.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete client address
+      tags:
+      - Client Address
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a specific address for the authenticated client.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update client address
+      tags:
+      - Client Address
+  /client/address/{id}/primary:
+    patch:
+      description: Sets a work address as the primary work address for the authenticated
+        client. Only work addresses can be set as primary.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set client primary work address
+      tags:
+      - Client Address
+  /client/bank:
+    get:
+      description: Returns all bank accounts for the authenticated client, primary
+        account first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.BankDetail'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get client bank accounts
+      tags:
+      - Client Bank Details
+    post:
+      consumes:
+      - application/json
+      description: Adds a bank account for the authenticated client. The first account
+        is automatically set as primary. All subsequent accounts must share the same
+        account name as the primary. A Paystack transfer recipient is created for
+        each account.
+      parameters:
+      - description: Bank account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_name:
+              type: string
+            account_number:
+              type: string
+            bank_code:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.BankDetail'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add client bank account
+      tags:
+      - Client Bank Details
+  /client/bank/{id}:
+    delete:
+      description: Deletes a bank account. Cannot delete the only account or the primary
+        account (set another as primary first).
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete client bank account
+      tags:
+      - Client Bank Details
+  /client/bank/{id}/primary:
+    patch:
+      description: Marks a specific bank account as the client's primary payout account.
+        The target account name must match the current primary account name.
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set client primary bank account
+      tags:
+      - Client Bank Details
   /notifications/{id}:
     delete:
       description: Permanently deletes a single notification. The notification must
@@ -2585,6 +5881,815 @@ paths:
       summary: Mark all notifications as read
       tags:
       - Notifications
+  /owner/address:
+    get:
+      description: Returns all addresses for the authenticated owner.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.Address'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get owner addresses
+      tags:
+      - Owner Address
+    post:
+      consumes:
+      - application/json
+      description: Adds a home or work address for the authenticated owner. Only one
+        home address is allowed (enforced by DB constraint). Multiple work addresses
+        are allowed; the first work address is automatically set as primary.
+      parameters:
+      - description: Address payload. address_type must be 'home' or 'work'. is_primary
+          only applies to work addresses.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address_type:
+              type: string
+            city:
+              type: string
+            country:
+              type: string
+            is_primary:
+              type: boolean
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add owner address
+      tags:
+      - Owner Address
+  /owner/address/{id}:
+    delete:
+      description: Deletes a specific address for the authenticated owner. Cannot
+        delete a primary work address if other work addresses exist — set another
+        as primary first.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete owner address
+      tags:
+      - Owner Address
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a specific address for the authenticated owner.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update owner address
+      tags:
+      - Owner Address
+  /owner/address/{id}/primary:
+    patch:
+      description: Sets a work address as the primary work address for the authenticated
+        owner. Only work addresses can be set as primary.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set owner primary work address
+      tags:
+      - Owner Address
+  /owner/bank:
+    get:
+      description: Returns all bank accounts for the authenticated owner, primary
+        account first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.BankDetail'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get owner bank accounts
+      tags:
+      - Owner Bank Details
+    post:
+      consumes:
+      - application/json
+      description: Adds a bank account for the authenticated owner. The first account
+        is automatically set as primary. All subsequent accounts must share the same
+        account name as the primary. A Paystack transfer recipient is created for
+        each account.
+      parameters:
+      - description: Bank account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_name:
+              type: string
+            account_number:
+              type: string
+            bank_code:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.BankDetail'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add owner bank account
+      tags:
+      - Owner Bank Details
+  /owner/bank/{id}:
+    delete:
+      description: Deletes a bank account. Cannot delete the only account or the primary
+        account (set another as primary first).
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete owner bank account
+      tags:
+      - Owner Bank Details
+  /owner/bank/{id}/primary:
+    patch:
+      description: Marks a specific bank account as the owner's primary payout account.
+        The target account name must match the current primary account name.
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set owner primary bank account
+      tags:
+      - Owner Bank Details
+  /reviews/{id}/replies:
+    get:
+      description: Returns all replies on a specific review, ordered oldest first.
+      parameters:
+      - description: Review UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get replies for a review
+      tags:
+      - Reviews
+  /reviews/{id}/reply:
+    post:
+      consumes:
+      - application/json
+      description: The artisan can reply once to any review on their profile. The
+        client can reply once after the artisan has responded. One reply per role
+        per review.
+      parameters:
+      - description: Review UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reply text
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            body:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reply to a review
+      tags:
+      - Reviews
+  /wallet/fund:
+    post:
+      consumes:
+      - application/json
+      description: Initialises a Paystack payment to top up the authenticated user's
+        wallet. Returns a Paystack checkout URL. The wallet is credited automatically
+        once the webhook confirms payment.
+      parameters:
+      - description: amount in Naira (min 100); email only required if account has
+          none
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            amount:
+              type: number
+            email:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  authorization_url:
+                    type: string
+                  reference:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Fund wallet via Paystack
+      tags:
+      - Wallet
+  /wallet/verify:
+    get:
+      description: 'Verifies the status of a Paystack payment by reference. Used as
+        the redirect callback after Paystack checkout. Note: wallet crediting is handled
+        by the webhook — this endpoint is informational only.'
+      parameters:
+      - description: Paystack payment reference
+        in: query
+        name: reference
+        type: string
+      - description: Paystack trxref (alias)
+        in: query
+        name: trxref
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              amount:
+                type: number
+              message:
+                type: string
+              reference:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              amount:
+                type: number
+              message:
+                type: string
+              reference:
+                type: string
+              status:
+                type: string
+            type: object
+      summary: Verify a Paystack payment (frontend callback)
+      tags:
+      - Wallet
+  /wallet/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a direct Paystack transfer to the user's primary bank
+        account. A ₦50 processing fee is deducted. The wallet is debited immediately;
+        funds arrive once Paystack confirms the transfer. Requires a primary bank
+        account to be set up first.
+      parameters:
+      - description: Amount in Naira (min ₦100)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            amount:
+              type: number
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  account_number:
+                    type: string
+                  amount:
+                    type: number
+                  bank_name:
+                    type: string
+                  fee:
+                    type: number
+                  status:
+                    type: string
+                  withdrawal_id:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Withdraw funds from wallet
+      tags:
+      - Wallet
+  /wallet/withdrawals:
+    get:
+      description: Returns a paginated list of the authenticated user's past withdrawals.
+      parameters:
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get withdrawal history
+      tags:
+      - Wallet
+  /ws/chat:
+    get:
+      description: |-
+        Upgrades the connection to a WebSocket. The authenticated user is registered with the chat hub. All chat messaging, typing indicators, and read receipts happen over this connection.
+
+        **Incoming frames (client → server):**
+
+        Send a text message:
+        `{"type":"message","conversation_id":"<uuid>","content":"Hello!"}`
+
+        Mark messages as read:
+        `{"type":"read","conversation_id":"<uuid>"}`
+
+        Typing indicator:
+        `{"type":"typing","conversation_id":"<uuid>"}`
+
+        **Outgoing frames (server → client):**
+
+        New message: `{"type":"message","payload":{...Message}}`
+        Read receipt: `{"type":"read","payload":{"conversation_id":"...","reader_id":"..."}}`
+        Typing: `{"type":"typing","payload":{"conversation_id":"...","sender_id":"..."}}`
+        Error: `{"type":"error","payload":{"code":"...","message":"..."}}`
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Connect to the chat WebSocket
+      tags:
+      - Chat
 schemes:
 - https
 securityDefinitions:
