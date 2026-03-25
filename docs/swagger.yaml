@@ -217,16 +217,16 @@ definitions:
       service_id:
         type: string
       variation_type_id:
-        type: integer
+        type: string
       variation_type_label:
         type: string
     type: object
   artisanprofilesettings.VariationType:
     properties:
       category_id:
-        type: integer
+        type: string
       id:
-        type: integer
+        type: string
       label:
         type: string
     type: object
@@ -315,7 +315,7 @@ definitions:
       artisan_id:
         type: string
       category_id:
-        type: integer
+        type: string
       created_at:
         type: string
       end_time:
@@ -347,7 +347,7 @@ definitions:
       artisan_id:
         type: string
       category_id:
-        type: integer
+        type: string
       created_at:
         type: string
       id:
@@ -413,7 +413,7 @@ definitions:
       cancelled_by:
         type: string
       category_id:
-        type: integer
+        type: string
       client_id:
         type: string
       completed_at:
@@ -1567,9 +1567,15 @@ paths:
       summary: Verify withdrawal transfer
       tags:
       - Admin Finance
-  /artisan/address:
+  /artisan-reviews/{id}/replies:
     get:
-      description: Returns all addresses for the authenticated artisan.
+      description: Returns all replies on a specific review, ordered oldest first.
+      parameters:
+      - description: Review UUID
+        in: path
+        name: id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
@@ -1581,72 +1587,52 @@ paths:
                 type: integer
               data:
                 items:
-                  $ref: '#/definitions/profilesettings.Address'
+                  type: object
                 type: array
               status:
                 type: string
             type: object
-        "401":
-          description: Unauthorized
+        "404":
+          description: Not Found
           schema:
             properties:
               error:
                 type: string
             type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get artisan addresses
+      summary: Get replies for a review
       tags:
-      - Artisan Address
+      - Reviews
+  /artisan-reviews/{id}/reply:
     post:
       consumes:
       - application/json
-      description: Adds a home or work address for the authenticated artisan. Only
-        one home address is allowed (enforced by DB constraint). Multiple work addresses
-        are allowed; the first work address is automatically set as primary.
+      description: The artisan can reply once to any review on their profile. The
+        client can reply once after the artisan has responded. One reply per role
+        per review.
       parameters:
-      - description: Address payload. address_type must be 'home' or 'work'. is_primary
-          only applies to work addresses.
+      - description: Review UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reply text
         in: body
         name: body
         required: true
         schema:
           properties:
-            address_type:
-              type: string
-            city:
-              type: string
-            country:
-              type: string
-            is_primary:
-              type: boolean
-            label:
-              type: string
-            latitude:
-              type: number
-            longitude:
-              type: number
-            state:
-              type: string
-            street:
+            body:
               type: string
           type: object
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
             properties:
               data:
-                $ref: '#/definitions/profilesettings.Address'
+                type: object
               message:
                 type: string
               status:
@@ -1654,13 +1640,6 @@ paths:
             type: object
         "400":
           description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
           schema:
             properties:
               error:
@@ -1673,41 +1652,6 @@ paths:
               error:
                 type: string
             type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Add artisan address
-      tags:
-      - Artisan Address
-  /artisan/address/{id}:
-    delete:
-      description: Deletes a specific address for the authenticated artisan. Cannot
-        delete a primary work address if other work addresses exist — set another
-        as primary first.
-      parameters:
-      - description: Address UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
         "404":
           description: Not Found
           schema:
@@ -1724,41 +1668,32 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Delete artisan address
+      summary: Reply to a review
       tags:
-      - Artisan Address
-    patch:
+      - Reviews
+  /artisan-reviews/{id}/review:
+    post:
       consumes:
       - application/json
-      description: Partially updates a specific address for the authenticated artisan.
-        Only provided fields are updated. Coordinates are updated together — both
-        latitude and longitude must be provided if updating location.
+      description: A client can leave a rating and comment for an artisan after a
+        completed and paid booking. Only one review per client per artisan — subsequent
+        calls update the existing review.
       parameters:
-      - description: Address UUID
+      - description: Artisan UUID
         in: path
         name: id
         required: true
         type: string
-      - description: Fields to update (all optional)
+      - description: rating 1–5
         in: body
         name: body
         required: true
         schema:
           properties:
-            city:
+            comment:
               type: string
-            country:
-              type: string
-            label:
-              type: string
-            latitude:
-              type: number
-            longitude:
-              type: number
-            state:
-              type: string
-            street:
-              type: string
+            rating:
+              type: integer
           type: object
       produces:
       - application/json
@@ -1768,7 +1703,16 @@ paths:
           schema:
             properties:
               data:
-                $ref: '#/definitions/profilesettings.Address'
+                properties:
+                  avg_rating:
+                    type: number
+                  rating:
+                    type: integer
+                  review_id:
+                    type: string
+                  total_reviews:
+                    type: integer
+                type: object
               message:
                 type: string
               status:
@@ -1776,6 +1720,13 @@ paths:
             type: object
         "400":
           description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             properties:
               error:
@@ -1790,15 +1741,63 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Update artisan address
+      summary: Leave a review for an artisan
       tags:
-      - Artisan Address
-  /artisan/address/{id}/primary:
-    patch:
-      description: Sets a work address as the primary work address for the authenticated
-        artisan. Only work addresses can be set as primary.
+      - Reviews
+  /artisan-reviews/{id}/reviews:
+    get:
+      description: Returns paginated reviews for a specific artisan, including a rating
+        summary breakdown and any replies on each review.
       parameters:
-      - description: Address UUID
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+              summary:
+                type: object
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get reviews for an artisan
+      tags:
+      - Reviews
+  /artisan/{id}/categories:
+    get:
+      description: Returns the categories registered on a specific artisan's profile,
+        with category details populated.
+      parameters:
+      - description: Artisan UUID
         in: path
         name: id
         required: true
@@ -1810,8 +1809,12 @@ paths:
           description: OK
           schema:
             properties:
-              message:
-                type: string
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.ArtisanCategory'
+                type: array
               status:
                 type: string
             type: object
@@ -1822,6 +1825,72 @@ paths:
               error:
                 type: string
             type: object
+      summary: Get an artisan's categories (public)
+      tags:
+      - Artisan Profile
+  /artisan/{id}/categories/{categoryId}/portfolio:
+    get:
+      description: Returns all portfolio images for a specific artisan and category.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category uuid
+        in: path
+        name: categoryId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
+                type: array
+              status:
+                type: string
+            type: object
+      summary: Get an artisan's portfolio images for a category (public)
+      tags:
+      - Artisan Profile
+  /artisan/{id}/services:
+    get:
+      description: Returns all active services for a specific artisan. Clients use
+        this to browse before creating a booking.
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              status:
+                type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -1829,20 +1898,18 @@ paths:
               error:
                 type: string
             type: object
-      security:
-      - BearerAuth: []
-      summary: Set artisan primary work address
+      summary: Get an artisan's services (public)
       tags:
-      - Artisan Address
+      - Artisan Services
   /artisan/availability:
     get:
       description: Returns all active recurring availability windows for the authenticated
         artisan, optionally filtered by category.
       parameters:
-      - description: Filter by category
+      - description: Filter by category UUID
         in: query
         name: category_id
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -1863,14 +1930,15 @@ paths:
         morning + afternoon). If a window with the same artisan/category/weekday/start_time
         already exists it is updated; otherwise a new row is inserted.
       parameters:
-      - description: 'weekday: 0=Sun…6=Sat; times in HH:MM format'
+      - description: 'weekday: 0=Sun…6=Sat; times in HH:MM format; category_id is
+          a UUID'
         in: body
         name: body
         required: true
         schema:
           properties:
             category_id:
-              type: integer
+              type: string
             end_time:
               type: string
             start_time:
@@ -1946,14 +2014,14 @@ paths:
         is_available=false to block a day (e.g. public holiday, personal day). Set
         is_available=true to force-open a day that would normally be off.
       parameters:
-      - description: date in YYYY-MM-DD format
+      - description: date in YYYY-MM-DD format; category_id is a UUID
         in: body
         name: body
         required: true
         schema:
           properties:
             category_id:
-              type: integer
+              type: string
             date:
               type: string
             is_available:
@@ -1980,211 +2048,6 @@ paths:
       summary: Block or open a specific date
       tags:
       - Artisan / Availability
-  /artisan/bank:
-    get:
-      description: Returns all bank accounts for the authenticated artisan, primary
-        account first.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/profilesettings.BankDetail'
-                type: array
-              status:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get artisan bank accounts
-      tags:
-      - Artisan Bank Details
-    post:
-      consumes:
-      - application/json
-      description: Adds a bank account for the authenticated artisan. The first account
-        is automatically set as primary. All subsequent accounts must share the same
-        account name as the primary (to prevent identity fraud). A Paystack transfer
-        recipient is created for each account.
-      parameters:
-      - description: Bank account payload
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            account_name:
-              type: string
-            account_number:
-              type: string
-            bank_code:
-              type: string
-            bank_name:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            properties:
-              data:
-                $ref: '#/definitions/profilesettings.BankDetail'
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Add artisan bank account
-      tags:
-      - Artisan Bank Details
-  /artisan/bank/{id}:
-    delete:
-      description: Deletes a bank account. Cannot delete the only account or the primary
-        account (set another as primary first).
-      parameters:
-      - description: Bank detail UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete artisan bank account
-      tags:
-      - Artisan Bank Details
-  /artisan/bank/{id}/primary:
-    patch:
-      description: Marks a specific bank account as the artisan's primary payout account.
-        The target account name must match the current primary account name.
-      parameters:
-      - description: Bank detail UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Set artisan primary bank account
-      tags:
-      - Artisan Bank Details
   /artisan/categories:
     get:
       description: Returns the categories registered on the authenticated artisan's
@@ -2439,11 +2302,11 @@ paths:
       - application/json
       description: Updates the caption or sort_order of an existing portfolio image.
       parameters:
-      - description: Category ID (integer)
+      - description: Category uuid
         in: path
         name: categoryId
         required: true
-        type: integer
+        type: string
       - description: Image UUID
         in: path
         name: imageId
@@ -2486,15 +2349,45 @@ paths:
       summary: Update a portfolio image
       tags:
       - Artisan Profile
+  /artisan/categories/{id}/variation-types:
+    get:
+      description: Returns the platform-defined variation types for a job category.
+        Artisans use these to configure their service pricing options.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/artisanprofilesettings.VariationType'
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get variation types for a category
+      tags:
+      - Artisan Services
   /artisan/services:
     get:
       description: Returns all services created by the authenticated artisan, optionally
         filtered by category_id.
       parameters:
-      - description: Filter by category
+      - description: Filter by category UUID
         in: query
         name: category_id
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -2531,7 +2424,7 @@ paths:
             base_price:
               type: number
             category_id:
-              type: integer
+              type: string
             description:
               type: string
             name:
@@ -2848,315 +2741,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update a service option
-      tags:
-      - Artisan Services
-  /artisans/{id}/availability:
-    get:
-      description: Returns the recurring weekly schedule and any upcoming date overrides
-        for a specific artisan/category. Useful for displaying a calendar UI before
-        choosing a date.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Category ID
-        in: query
-        name: category_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/booking.ArtisanAvailabilityResponse'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      summary: Get an artisan's public availability schedule
-      tags:
-      - Booking
-  /artisans/{id}/available-slots:
-    get:
-      description: 'Returns a day-by-day availability breakdown for an artisan within
-        a given date range (max 60 days). For each date: checks the weekday recurring
-        schedule, applies any date-level overrides, then subtracts confirmed/pending
-        bookings to determine if the slot is still open.'
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Category ID
-        in: query
-        name: category_id
-        required: true
-        type: integer
-      - description: Start date YYYY-MM-DD (inclusive)
-        in: query
-        name: from
-        required: true
-        type: string
-      - description: End date YYYY-MM-DD (inclusive, max 60 days from from)
-        in: query
-        name: to
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/booking.AvailableSlotsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get available slots for an artisan
-      tags:
-      - Booking
-  /artisans/{id}/categories:
-    get:
-      description: Returns the categories registered on a specific artisan's profile,
-        with category details populated.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/artisanprofilesettings.ArtisanCategory'
-                type: array
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      summary: Get an artisan's categories (public)
-      tags:
-      - Artisan Profile
-  /artisans/{id}/categories/{categoryId}/portfolio:
-    get:
-      description: Returns all portfolio images for a specific artisan and category.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Category ID (integer)
-        in: path
-        name: categoryId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/artisanprofilesettings.PortfolioImage'
-                type: array
-              status:
-                type: string
-            type: object
-      summary: Get an artisan's portfolio images for a category (public)
-      tags:
-      - Artisan Profile
-  /artisans/{id}/review:
-    post:
-      consumes:
-      - application/json
-      description: A client can leave a rating and comment for an artisan after a
-        completed and paid booking. Only one review per client per artisan — subsequent
-        calls update the existing review.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: rating 1–5
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            comment:
-              type: string
-            rating:
-              type: integer
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              data:
-                properties:
-                  avg_rating:
-                    type: number
-                  rating:
-                    type: integer
-                  review_id:
-                    type: string
-                  total_reviews:
-                    type: integer
-                type: object
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Leave a review for an artisan
-      tags:
-      - Reviews
-  /artisans/{id}/reviews:
-    get:
-      description: Returns paginated reviews for a specific artisan, including a rating
-        summary breakdown and any replies on each review.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Page (default 1)
-        in: query
-        name: page
-        type: integer
-      - description: Items per page (default 20)
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  type: object
-                type: array
-              pagination:
-                type: object
-              status:
-                type: string
-              summary:
-                type: object
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      summary: Get reviews for an artisan
-      tags:
-      - Reviews
-  /artisans/{id}/services:
-    get:
-      description: Returns all active services for a specific artisan. Clients use
-        this to browse before creating a booking.
-      parameters:
-      - description: Artisan UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Filter by category
-        in: query
-        name: category_id
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  type: object
-                type: array
-              status:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      summary: Get an artisan's services (public)
       tags:
       - Artisan Services
   /auth/apple:
@@ -4452,7 +4036,7 @@ paths:
             booking_date:
               type: string
             category_id:
-              type: integer
+              type: string
             note:
               type: string
             service_id:
@@ -4773,55 +4357,29 @@ paths:
       summary: Pay for a confirmed booking
       tags:
       - Booking
-  /categories:
+  /bookings/artisan/{id}/availability:
     get:
-      description: Returns all platform job categories. Used by clients and artisans
-        to browse available service types.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/artisanprofilesettings.CategoryInfo'
-                type: array
-              status:
-                type: string
-            type: object
-      summary: List all job categories
-      tags:
-      - Categories
-  /categories/{id}/variation-types:
-    get:
-      description: Returns the platform-defined variation types for a job category.
-        Artisans use these to configure their service pricing options.
+      description: Returns the recurring weekly schedule and any upcoming date overrides
+        for a specific artisan/category. Useful for displaying a calendar UI before
+        choosing a date.
       parameters:
-      - description: Category ID
+      - description: Artisan UUID
         in: path
         name: id
         required: true
-        type: integer
+        type: string
+      - description: Category UUID
+        in: query
+        name: category_id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/artisanprofilesettings.VariationType'
-                type: array
-              status:
-                type: string
-            type: object
+            $ref: '#/definitions/booking.ArtisanAvailabilityResponse'
         "400":
           description: Bad Request
           schema:
@@ -4829,9 +4387,55 @@ paths:
               error:
                 type: string
             type: object
-      summary: Get variation types for a category
+      summary: Get an artisan's public availability schedule
       tags:
-      - Artisan Services
+      - Booking
+  /bookings/artisans/{id}/available-slots:
+    get:
+      description: 'Returns a day-by-day availability breakdown for an artisan within
+        a given date range (max 60 days). For each date: checks the weekday recurring
+        schedule, applies any date-level overrides, then subtracts confirmed/pending
+        bookings to determine if the slot is still open.'
+      parameters:
+      - description: Artisan UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category UUID
+        in: query
+        name: category_id
+        required: true
+        type: string
+      - description: Start date YYYY-MM-DD (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: End date YYYY-MM-DD (inclusive, max 60 days from from)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.AvailableSlotsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get available slots for an artisan
+      tags:
+      - Booking
   /chat/conversations:
     get:
       description: Returns a paginated list of all conversations for the authenticated
@@ -5201,25 +4805,33 @@ paths:
       summary: Mark messages as read
       tags:
       - Chat
-  /client/address:
+  /chat/ws:
     get:
-      description: Returns all addresses for the authenticated client.
-      produces:
-      - application/json
+      description: |-
+        Upgrades the connection to a WebSocket. The authenticated user is registered with the chat hub. All chat messaging, typing indicators, and read receipts happen over this connection.
+
+        **Incoming frames (client → server):**
+
+        Send a text message:
+        `{"type":"message","conversation_id":"<uuid>","content":"Hello!"}`
+
+        Mark messages as read:
+        `{"type":"read","conversation_id":"<uuid>"}`
+
+        Typing indicator:
+        `{"type":"typing","conversation_id":"<uuid>"}`
+
+        **Outgoing frames (server → client):**
+
+        New message: `{"type":"message","payload":{...Message}}`
+        Read receipt: `{"type":"read","payload":{"conversation_id":"...","reader_id":"..."}}`
+        Typing: `{"type":"typing","payload":{"conversation_id":"...","sender_id":"..."}}`
+        Error: `{"type":"error","payload":{"code":"...","message":"..."}}`
       responses:
-        "200":
-          description: OK
+        "101":
+          description: Switching Protocols
           schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/profilesettings.Address'
-                type: array
-              status:
-                type: string
-            type: object
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -5227,450 +4839,11 @@ paths:
               error:
                 type: string
             type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
       security:
       - BearerAuth: []
-      summary: Get client addresses
+      summary: Connect to the chat WebSocket
       tags:
-      - Client Address
-    post:
-      consumes:
-      - application/json
-      description: Adds a home or work address for the authenticated client. Only
-        one home address is allowed (enforced by DB constraint). Multiple work addresses
-        are allowed; the first work address is automatically set as primary.
-      parameters:
-      - description: Address payload. address_type must be 'home' or 'work'. is_primary
-          only applies to work addresses.
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            address_type:
-              type: string
-            city:
-              type: string
-            country:
-              type: string
-            is_primary:
-              type: boolean
-            label:
-              type: string
-            latitude:
-              type: number
-            longitude:
-              type: number
-            state:
-              type: string
-            street:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            properties:
-              data:
-                $ref: '#/definitions/profilesettings.Address'
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Add client address
-      tags:
-      - Client Address
-  /client/address/{id}:
-    delete:
-      description: Deletes a specific address for the authenticated client. Cannot
-        delete a primary work address if other work addresses exist — set another
-        as primary first.
-      parameters:
-      - description: Address UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete client address
-      tags:
-      - Client Address
-    patch:
-      consumes:
-      - application/json
-      description: Partially updates a specific address for the authenticated client.
-      parameters:
-      - description: Address UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Fields to update (all optional)
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            city:
-              type: string
-            country:
-              type: string
-            label:
-              type: string
-            latitude:
-              type: number
-            longitude:
-              type: number
-            state:
-              type: string
-            street:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              data:
-                $ref: '#/definitions/profilesettings.Address'
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Update client address
-      tags:
-      - Client Address
-  /client/address/{id}/primary:
-    patch:
-      description: Sets a work address as the primary work address for the authenticated
-        client. Only work addresses can be set as primary.
-      parameters:
-      - description: Address UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Set client primary work address
-      tags:
-      - Client Address
-  /client/bank:
-    get:
-      description: Returns all bank accounts for the authenticated client, primary
-        account first.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  $ref: '#/definitions/profilesettings.BankDetail'
-                type: array
-              status:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get client bank accounts
-      tags:
-      - Client Bank Details
-    post:
-      consumes:
-      - application/json
-      description: Adds a bank account for the authenticated client. The first account
-        is automatically set as primary. All subsequent accounts must share the same
-        account name as the primary. A Paystack transfer recipient is created for
-        each account.
-      parameters:
-      - description: Bank account payload
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            account_name:
-              type: string
-            account_number:
-              type: string
-            bank_code:
-              type: string
-            bank_name:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            properties:
-              data:
-                $ref: '#/definitions/profilesettings.BankDetail'
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Add client bank account
-      tags:
-      - Client Bank Details
-  /client/bank/{id}:
-    delete:
-      description: Deletes a bank account. Cannot delete the only account or the primary
-        account (set another as primary first).
-      parameters:
-      - description: Bank detail UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Delete client bank account
-      tags:
-      - Client Bank Details
-  /client/bank/{id}/primary:
-    patch:
-      description: Marks a specific bank account as the client's primary payout account.
-        The target account name must match the current primary account name.
-      parameters:
-      - description: Bank detail UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Set client primary bank account
-      tags:
-      - Client Bank Details
+      - Chat
   /notifications/{id}:
     delete:
       description: Permanently deletes a single notification. The notification must
@@ -5881,7 +5054,949 @@ paths:
       summary: Mark all notifications as read
       tags:
       - Notifications
-  /owner/address:
+  /profile/artisan/address:
+    get:
+      description: Returns all addresses for the authenticated artisan.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.Address'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get artisan addresses
+      tags:
+      - Artisan Address
+    post:
+      consumes:
+      - application/json
+      description: Adds a home or work address for the authenticated artisan. Only
+        one home address is allowed (enforced by DB constraint). Multiple work addresses
+        are allowed; the first work address is automatically set as primary.
+      parameters:
+      - description: Address payload. address_type must be 'home' or 'work'. is_primary
+          only applies to work addresses.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address_type:
+              type: string
+            city:
+              type: string
+            country:
+              type: string
+            is_primary:
+              type: boolean
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add artisan address
+      tags:
+      - Artisan Address
+  /profile/artisan/address/{id}:
+    delete:
+      description: Deletes a specific address for the authenticated artisan. Cannot
+        delete a primary work address if other work addresses exist — set another
+        as primary first.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete artisan address
+      tags:
+      - Artisan Address
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a specific address for the authenticated artisan.
+        Only provided fields are updated. Coordinates are updated together — both
+        latitude and longitude must be provided if updating location.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update artisan address
+      tags:
+      - Artisan Address
+  /profile/artisan/address/{id}/primary:
+    patch:
+      description: Sets a work address as the primary work address for the authenticated
+        artisan. Only work addresses can be set as primary.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set artisan primary work address
+      tags:
+      - Artisan Address
+  /profile/artisan/bank:
+    get:
+      description: Returns all bank accounts for the authenticated artisan, primary
+        account first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.BankDetail'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get artisan bank accounts
+      tags:
+      - Artisan Bank Details
+    post:
+      consumes:
+      - application/json
+      description: Adds a bank account for the authenticated artisan. The first account
+        is automatically set as primary. All subsequent accounts must share the same
+        account name as the primary (to prevent identity fraud). A Paystack transfer
+        recipient is created for each account.
+      parameters:
+      - description: Bank account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_name:
+              type: string
+            account_number:
+              type: string
+            bank_code:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.BankDetail'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add artisan bank account
+      tags:
+      - Artisan Bank Details
+  /profile/artisan/bank/{id}:
+    delete:
+      description: Deletes a bank account. Cannot delete the only account or the primary
+        account (set another as primary first).
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete artisan bank account
+      tags:
+      - Artisan Bank Details
+  /profile/artisan/bank/{id}/primary:
+    patch:
+      description: Marks a specific bank account as the artisan's primary payout account.
+        The target account name must match the current primary account name.
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set artisan primary bank account
+      tags:
+      - Artisan Bank Details
+  /profile/client/address:
+    get:
+      description: Returns all addresses for the authenticated client.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.Address'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get client addresses
+      tags:
+      - Client Address
+    post:
+      consumes:
+      - application/json
+      description: Adds a home or work address for the authenticated client. Only
+        one home address is allowed (enforced by DB constraint). Multiple work addresses
+        are allowed; the first work address is automatically set as primary.
+      parameters:
+      - description: Address payload. address_type must be 'home' or 'work'. is_primary
+          only applies to work addresses.
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            address_type:
+              type: string
+            city:
+              type: string
+            country:
+              type: string
+            is_primary:
+              type: boolean
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add client address
+      tags:
+      - Client Address
+  /profile/client/address/{id}:
+    delete:
+      description: Deletes a specific address for the authenticated client. Cannot
+        delete a primary work address if other work addresses exist — set another
+        as primary first.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete client address
+      tags:
+      - Client Address
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a specific address for the authenticated client.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            city:
+              type: string
+            country:
+              type: string
+            label:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            state:
+              type: string
+            street:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.Address'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update client address
+      tags:
+      - Client Address
+  /profile/client/address/{id}/primary:
+    patch:
+      description: Sets a work address as the primary work address for the authenticated
+        client. Only work addresses can be set as primary.
+      parameters:
+      - description: Address UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set client primary work address
+      tags:
+      - Client Address
+  /profile/client/bank:
+    get:
+      description: Returns all bank accounts for the authenticated client, primary
+        account first.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/profilesettings.BankDetail'
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get client bank accounts
+      tags:
+      - Client Bank Details
+    post:
+      consumes:
+      - application/json
+      description: Adds a bank account for the authenticated client. The first account
+        is automatically set as primary. All subsequent accounts must share the same
+        account name as the primary. A Paystack transfer recipient is created for
+        each account.
+      parameters:
+      - description: Bank account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            account_name:
+              type: string
+            account_number:
+              type: string
+            bank_code:
+              type: string
+            bank_name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/profilesettings.BankDetail'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add client bank account
+      tags:
+      - Client Bank Details
+  /profile/client/bank/{id}:
+    delete:
+      description: Deletes a bank account. Cannot delete the only account or the primary
+        account (set another as primary first).
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete client bank account
+      tags:
+      - Client Bank Details
+  /profile/client/bank/{id}/primary:
+    patch:
+      description: Marks a specific bank account as the client's primary payout account.
+        The target account name must match the current primary account name.
+      parameters:
+      - description: Bank detail UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set client primary bank account
+      tags:
+      - Client Bank Details
+  /profile/owner/address:
     get:
       description: Returns all addresses for the authenticated owner.
       produces:
@@ -5999,7 +6114,7 @@ paths:
       summary: Add owner address
       tags:
       - Owner Address
-  /owner/address/{id}:
+  /profile/owner/address/{id}:
     delete:
       description: Deletes a specific address for the authenticated owner. Cannot
         delete a primary work address if other work addresses exist — set another
@@ -6105,7 +6220,7 @@ paths:
       summary: Update owner address
       tags:
       - Owner Address
-  /owner/address/{id}/primary:
+  /profile/owner/address/{id}/primary:
     patch:
       description: Sets a work address as the primary work address for the authenticated
         owner. Only work addresses can be set as primary.
@@ -6146,7 +6261,7 @@ paths:
       summary: Set owner primary work address
       tags:
       - Owner Address
-  /owner/bank:
+  /profile/owner/bank:
     get:
       description: Returns all bank accounts for the authenticated owner, primary
         account first.
@@ -6255,7 +6370,7 @@ paths:
       summary: Add owner bank account
       tags:
       - Owner Bank Details
-  /owner/bank/{id}:
+  /profile/owner/bank/{id}:
     delete:
       description: Deletes a bank account. Cannot delete the only account or the primary
         account (set another as primary first).
@@ -6303,7 +6418,7 @@ paths:
       summary: Delete owner bank account
       tags:
       - Owner Bank Details
-  /owner/bank/{id}/primary:
+  /profile/owner/bank/{id}/primary:
     patch:
       description: Marks a specific bank account as the owner's primary payout account.
         The target account name must match the current primary account name.
@@ -6351,110 +6466,6 @@ paths:
       summary: Set owner primary bank account
       tags:
       - Owner Bank Details
-  /reviews/{id}/replies:
-    get:
-      description: Returns all replies on a specific review, ordered oldest first.
-      parameters:
-      - description: Review UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              count:
-                type: integer
-              data:
-                items:
-                  type: object
-                type: array
-              status:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      summary: Get replies for a review
-      tags:
-      - Reviews
-  /reviews/{id}/reply:
-    post:
-      consumes:
-      - application/json
-      description: The artisan can reply once to any review on their profile. The
-        client can reply once after the artisan has responded. One reply per role
-        per review.
-      parameters:
-      - description: Review UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Reply text
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            body:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              data:
-                type: object
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "409":
-          description: Conflict
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Reply to a review
-      tags:
-      - Reviews
   /wallet/fund:
     post:
       consumes:
@@ -6651,45 +6662,6 @@ paths:
       summary: Get withdrawal history
       tags:
       - Wallet
-  /ws/chat:
-    get:
-      description: |-
-        Upgrades the connection to a WebSocket. The authenticated user is registered with the chat hub. All chat messaging, typing indicators, and read receipts happen over this connection.
-
-        **Incoming frames (client → server):**
-
-        Send a text message:
-        `{"type":"message","conversation_id":"<uuid>","content":"Hello!"}`
-
-        Mark messages as read:
-        `{"type":"read","conversation_id":"<uuid>"}`
-
-        Typing indicator:
-        `{"type":"typing","conversation_id":"<uuid>"}`
-
-        **Outgoing frames (server → client):**
-
-        New message: `{"type":"message","payload":{...Message}}`
-        Read receipt: `{"type":"read","payload":{"conversation_id":"...","reader_id":"..."}}`
-        Typing: `{"type":"typing","payload":{"conversation_id":"...","sender_id":"..."}}`
-        Error: `{"type":"error","payload":{"code":"...","message":"..."}}`
-      responses:
-        "101":
-          description: Switching Protocols
-          schema:
-            type: string
-        "401":
-          description: Unauthorized
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Connect to the chat WebSocket
-      tags:
-      - Chat
 schemes:
 - https
 securityDefinitions:

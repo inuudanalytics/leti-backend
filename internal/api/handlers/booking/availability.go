@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"leti_server/internal/models/booking"
@@ -54,7 +53,7 @@ type ArtisanAvailabilityResponse struct {
 // @Tags         Artisan / Availability
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{category_id=int,weekday=int,start_time=string,end_time=string}  true  "weekday: 0=Sun…6=Sat; times in HH:MM format"
+// @Param        body  body  object{category_id=string,weekday=int,start_time=string,end_time=string}  true  "weekday: 0=Sun…6=Sat; times in HH:MM format; category_id is a UUID"
 // @Success 200 {object} AvailabilityResponse
 // @Failure      400   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
@@ -84,10 +83,10 @@ func SetAvailability(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type request struct {
-		CategoryID int    `json:"category_id"`
-		Weekday    int    `json:"weekday"`
-		StartTime  string `json:"start_time"`
-		EndTime    string `json:"end_time"`
+		CategoryID uuid.UUID `json:"category_id"`
+		Weekday    int       `json:"weekday"`
+		StartTime  string    `json:"start_time"`
+		EndTime    string    `json:"end_time"`
 	}
 
 	var req request
@@ -99,7 +98,7 @@ func SetAvailability(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if req.CategoryID == 0 {
+	if req.CategoryID == uuid.Nil {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return
 	}
@@ -238,7 +237,7 @@ func DeleteAvailability(w http.ResponseWriter, r *http.Request) {
 // @Description  Returns all active recurring availability windows for the authenticated artisan, optionally filtered by category.
 // @Tags         Artisan / Availability
 // @Produce      json
-// @Param        category_id  query  int  false  "Filter by category"
+// @Param        category_id  query  string  false  "Filter by category UUID"
 // @Success 200  {object}  AvailabilityListResponse
 // @Router       /artisan/availability [get]
 // @Security     BearerAuth
@@ -272,7 +271,7 @@ func GetMyAvailability(w http.ResponseWriter, r *http.Request) {
 	args := []interface{}{userID}
 
 	if catStr := r.URL.Query().Get("category_id"); catStr != "" {
-		catID, err := strconv.Atoi(catStr)
+		catID, err := uuid.Parse(catStr)
 		if err != nil {
 			utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
 			return
@@ -321,7 +320,7 @@ func GetMyAvailability(w http.ResponseWriter, r *http.Request) {
 // @Tags         Artisan / Availability
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{category_id=int,date=string,is_available=bool,note=string}  true  "date in YYYY-MM-DD format"
+// @Param        body  body  object{category_id=string,date=string,is_available=bool,note=string}  true  "date in YYYY-MM-DD format; category_id is a UUID"
 // @Success      200   {object}  AvailabilityOverrideResponse
 // @Failure      400   {object}  object{error=string}
 // @Router       /artisan/availability/overrides [post]
@@ -350,10 +349,10 @@ func SetAvailabilityOverride(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type request struct {
-		CategoryID  int     `json:"category_id"`
-		Date        string  `json:"date"`
-		IsAvailable bool    `json:"is_available"`
-		Note        *string `json:"note,omitempty"`
+		CategoryID  uuid.UUID `json:"category_id"`
+		Date        string    `json:"date"`
+		IsAvailable bool      `json:"is_available"`
+		Note        *string   `json:"note,omitempty"`
 	}
 
 	var req request
@@ -365,7 +364,7 @@ func SetAvailabilityOverride(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if req.CategoryID == 0 {
+	if req.CategoryID == uuid.Nil {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return
 	}
@@ -430,12 +429,12 @@ func SetAvailabilityOverride(w http.ResponseWriter, r *http.Request) {
 // @Tags         Booking
 // @Produce      json
 // @Param        id           path   string  true   "Artisan UUID"
-// @Param        category_id  query  int     true   "Category ID"
+// @Param        category_id  query  string  true   "Category UUID"
 // @Param        from         query  string  true   "Start date YYYY-MM-DD (inclusive)"
 // @Param        to           query  string  true   "End date YYYY-MM-DD (inclusive, max 60 days from from)"
 // @Success      200  {object}  AvailableSlotsResponse
 // @Failure      400  {object}  object{error=string}
-// @Router       /artisans/{id}/available-slots [get]
+// @Router       /bookings/artisans/{id}/available-slots [get]
 // @Security     BearerAuth
 func GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -460,7 +459,7 @@ func GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return
 	}
-	categoryID, err := strconv.Atoi(catStr)
+	categoryID, err := uuid.Parse(catStr)
 	if err != nil {
 		utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
 		return
@@ -478,6 +477,7 @@ func GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "from must be YYYY-MM-DD", http.StatusBadRequest)
 		return
 	}
+
 	to, err := time.Parse("2006-01-02", toStr)
 	if err != nil {
 		utils.WriteError(w, "to must be YYYY-MM-DD", http.StatusBadRequest)
@@ -637,10 +637,10 @@ func GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
 // @Tags         Booking
 // @Produce      json
 // @Param        id           path   string  true   "Artisan UUID"
-// @Param        category_id  query  int     true   "Category ID"
+// @Param        category_id  query  string  true   "Category UUID"
 // @Success      200  {object}  ArtisanAvailabilityResponse
 // @Failure      400  {object}  object{error=string}
-// @Router       /artisans/{id}/availability [get]
+// @Router       /bookings/artisan/{id}/availability [get]
 func GetArtisanAvailability(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -664,7 +664,7 @@ func GetArtisanAvailability(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return
 	}
-	categoryID, err := strconv.Atoi(catStr)
+	categoryID, err := uuid.Parse(catStr)
 	if err != nil {
 		utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
 		return

@@ -28,7 +28,7 @@ import (
 // @Tags         Booking
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{artisan_id=string,category_id=int,service_id=string,service_option_id=string,booking_date=string,start_time=string,address=string,note=string}  true  "Booking request"
+// @Param        body  body  object{artisan_id=string,category_id=string,service_id=string,service_option_id=string,booking_date=string,start_time=string,address=string,note=string}  true  "Booking request"
 // @Success      201  {object}  object{status=string,message=string,booking=booking.Booking}
 // @Failure      400  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
@@ -58,14 +58,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type request struct {
-		ArtisanID       string  `json:"artisan_id"`
-		CategoryID      int     `json:"category_id"`
-		ServiceID       *string `json:"service_id,omitempty"`
-		ServiceOptionID *string `json:"service_option_id,omitempty"`
-		BookingDate     string  `json:"booking_date"`
-		StartTime       string  `json:"start_time"`
-		Address         *string `json:"address,omitempty"`
-		Note            *string `json:"note,omitempty"`
+		ArtisanID       string    `json:"artisan_id"`
+		CategoryID      uuid.UUID `json:"category_id"`
+		ServiceID       *string   `json:"service_id,omitempty"`
+		ServiceOptionID *string   `json:"service_option_id,omitempty"`
+		BookingDate     string    `json:"booking_date"`
+		StartTime       string    `json:"start_time"`
+		Address         *string   `json:"address,omitempty"`
+		Note            *string   `json:"note,omitempty"`
 		// PaymentMethod is intentionally absent here — the client chooses their
 		// payment method when they pay (POST /bookings/{id}/pay), after the
 		// artisan has confirmed the booking.
@@ -89,7 +89,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "invalid artisan_id", http.StatusBadRequest)
 		return
 	}
-	if req.CategoryID == 0 {
+	if req.CategoryID == uuid.Nil {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return
 	}

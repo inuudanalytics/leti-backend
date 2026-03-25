@@ -181,7 +181,7 @@ func GetBankList(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /artisan/bank
+// POST /profile/artisan/bank
 // ============================================================================
 
 // SaveArtisanBankDetails godoc
@@ -196,14 +196,14 @@ func GetBankList(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /artisan/bank [post]
+// @Router       /profile/artisan/bank [post]
 // @Security     BearerAuth
 func SaveArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 	saveBankDetails(w, r, bankConfigs["artisan"])
 }
 
 // ============================================================================
-// GET /artisan/bank
+// GET /profile/artisan/bank
 // ============================================================================
 
 // GetArtisanBankDetails godoc
@@ -214,14 +214,14 @@ func SaveArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]BankDetail}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /artisan/bank [get]
+// @Router       /profile/artisan/bank [get]
 // @Security     BearerAuth
 func GetArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 	getBankDetails(w, r, bankConfigs["artisan"])
 }
 
 // ============================================================================
-// PATCH /artisan/bank/{id}/primary
+// PATCH /profile/artisan/bank/{id}/primary
 // ============================================================================
 
 // SetArtisanPrimaryBankAccount godoc
@@ -234,14 +234,14 @@ func GetArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /artisan/bank/{id}/primary [patch]
+// @Router       /profile/artisan/bank/{id}/primary [patch]
 // @Security     BearerAuth
 func SetArtisanPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 	setPrimaryBankAccount(w, r, bankConfigs["artisan"])
 }
 
 // ============================================================================
-// DELETE /artisan/bank/{id}
+// DELETE /profile/artisan/bank/{id}
 // ============================================================================
 
 // DeleteArtisanBankDetails godoc
@@ -254,14 +254,14 @@ func SetArtisanPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /artisan/bank/{id} [delete]
+// @Router       /profile/artisan/bank/{id} [delete]
 // @Security     BearerAuth
 func DeleteArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 	deleteBankDetails(w, r, bankConfigs["artisan"])
 }
 
 // ============================================================================
-// POST /client/bank
+// POST /profile/client/bank
 // ============================================================================
 
 // SaveClientBankDetails godoc
@@ -276,14 +276,14 @@ func DeleteArtisanBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /client/bank [post]
+// @Router       /profile/client/bank [post]
 // @Security     BearerAuth
 func SaveClientBankDetails(w http.ResponseWriter, r *http.Request) {
 	saveBankDetails(w, r, bankConfigs["client"])
 }
 
 // ============================================================================
-// GET /client/bank
+// GET /profile/client/bank
 // ============================================================================
 
 // GetClientBankDetails godoc
@@ -294,14 +294,14 @@ func SaveClientBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]BankDetail}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /client/bank [get]
+// @Router       /profile/client/bank [get]
 // @Security     BearerAuth
 func GetClientBankDetails(w http.ResponseWriter, r *http.Request) {
 	getBankDetails(w, r, bankConfigs["client"])
 }
 
 // ============================================================================
-// PATCH /client/bank/{id}/primary
+// PATCH /profile/client/bank/{id}/primary
 // ============================================================================
 
 // SetClientPrimaryBankAccount godoc
@@ -314,14 +314,14 @@ func GetClientBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /client/bank/{id}/primary [patch]
+// @Router       /profile/client/bank/{id}/primary [patch]
 // @Security     BearerAuth
 func SetClientPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 	setPrimaryBankAccount(w, r, bankConfigs["client"])
 }
 
 // ============================================================================
-// DELETE /client/bank/{id}
+// DELETE /profile/client/bank/{id}
 // ============================================================================
 
 // DeleteClientBankDetails godoc
@@ -334,14 +334,14 @@ func SetClientPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /client/bank/{id} [delete]
+// @Router       /profile/client/bank/{id} [delete]
 // @Security     BearerAuth
 func DeleteClientBankDetails(w http.ResponseWriter, r *http.Request) {
 	deleteBankDetails(w, r, bankConfigs["client"])
 }
 
 // ============================================================================
-// POST /owner/bank
+// POST /profile/owner/bank
 // ============================================================================
 
 // SaveOwnerBankDetails godoc
@@ -356,14 +356,14 @@ func DeleteClientBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /owner/bank [post]
+// @Router       /profile/owner/bank [post]
 // @Security     BearerAuth
 func SaveOwnerBankDetails(w http.ResponseWriter, r *http.Request) {
 	saveBankDetails(w, r, bankConfigs["owner"])
 }
 
 // ============================================================================
-// GET /owner/bank
+// GET /profile/owner/bank
 // ============================================================================
 
 // GetOwnerBankDetails godoc
@@ -374,14 +374,14 @@ func SaveOwnerBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]BankDetail}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /owner/bank [get]
+// @Router       /profile/owner/bank [get]
 // @Security     BearerAuth
 func GetOwnerBankDetails(w http.ResponseWriter, r *http.Request) {
 	getBankDetails(w, r, bankConfigs["owner"])
 }
 
 // ============================================================================
-// PATCH /owner/bank/{id}/primary
+// PATCH /profile/owner/bank/{id}/primary
 // ============================================================================
 
 // SetOwnerPrimaryBankAccount godoc
@@ -394,14 +394,14 @@ func GetOwnerBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /owner/bank/{id}/primary [patch]
+// @Router       /profile/owner/bank/{id}/primary [patch]
 // @Security     BearerAuth
 func SetOwnerPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 	setPrimaryBankAccount(w, r, bankConfigs["owner"])
 }
 
 // ============================================================================
-// DELETE /owner/bank/{id}
+// DELETE /profile/owner/bank/{id}
 // ============================================================================
 
 // DeleteOwnerBankDetails godoc
@@ -414,7 +414,7 @@ func SetOwnerPrimaryBankAccount(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /owner/bank/{id} [delete]
+// @Router       /profile/owner/bank/{id} [delete]
 // @Security     BearerAuth
 func DeleteOwnerBankDetails(w http.ResponseWriter, r *http.Request) {
 	deleteBankDetails(w, r, bankConfigs["owner"])

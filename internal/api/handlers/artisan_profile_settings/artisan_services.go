@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"leti_server/internal/repositories/sqlconnect"
@@ -29,7 +28,7 @@ type Service struct {
 type ServiceOption struct {
 	ID              uuid.UUID `json:"id"`
 	ServiceID       uuid.UUID `json:"service_id"`
-	VariationTypeID int       `json:"variation_type_id"`
+	VariationTypeID uuid.UUID `json:"variation_type_id"`
 	VariationLabel  string    `json:"variation_type_label"`
 	Label           string    `json:"label"`
 	PriceModifier   float64   `json:"price_modifier"`
@@ -37,13 +36,13 @@ type ServiceOption struct {
 }
 
 type VariationType struct {
-	ID         int    `json:"id"`
-	CategoryID int    `json:"category_id"`
-	Label      string `json:"label"`
+	ID         uuid.UUID `json:"id"`
+	CategoryID uuid.UUID `json:"category_id"`
+	Label      string    `json:"label"`
 }
 
 // ============================================================================
-// GET /categories/{id}/variation-types
+// GET /artisan/categories/{id}/variation-types
 // ============================================================================
 // Public — returns the platform-defined variation types for a category.
 // The frontend uses this to render the "add option" form for artisans.
@@ -53,10 +52,10 @@ type VariationType struct {
 // @Description  Returns the platform-defined variation types for a job category. Artisans use these to configure their service pricing options.
 // @Tags         Artisan Services
 // @Produce      json
-// @Param        id  path  int  true  "Category ID"
+// @Param        id  path  uuid  true  "Category ID"
 // @Success      200  {object}  object{status=string,count=int,data=[]VariationType}
 // @Failure      400  {object}  object{error=string}
-// @Router       /categories/{id}/variation-types [get]
+// @Router       /artisan/categories/{id}/variation-types [get]
 func GetVariationTypes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -69,18 +68,18 @@ func GetVariationTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID, err := strconv.Atoi(r.PathValue("id"))
+	categoryID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		utils.WriteError(w, "invalid category id", http.StatusBadRequest)
 		return
 	}
 
 	rows, err := db.Query(r.Context(), `
-		SELECT id, category_id, label
-		FROM service_variation_types
-		WHERE category_id = $1
-		ORDER BY id ASC
-	`, categoryID)
+    SELECT id, category_id, label
+    FROM service_variation_types
+    WHERE category_id = $1
+    ORDER BY id ASC
+`, categoryID)
 	if err != nil {
 		utils.Logger.Errorf("failed to fetch variation types: %v", err)
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
@@ -92,10 +91,16 @@ func GetVariationTypes(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var vt VariationType
 		if err := rows.Scan(&vt.ID, &vt.CategoryID, &vt.Label); err != nil {
+			utils.Logger.Errorf("failed to scan variation type: %v", err)
 			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
 		items = append(items, vt)
+	}
+	if err := rows.Err(); err != nil {
+		utils.Logger.Errorf("rows iteration error: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
 	}
 
 	utils.WriteJSON(w, map[string]interface{}{
@@ -116,7 +121,7 @@ func GetVariationTypes(w http.ResponseWriter, r *http.Request) {
 // @Tags         Artisan Services
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{category_id=int,name=string,description=string,base_price=number}  true  "Service details"
+// @Param        body  body  object{category_id=string,name=string,description=string,base_price=number}  true  "Service details"
 // @Success      201   {object}  object{status=string,message=string,data=Service}
 // @Failure      400   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
@@ -228,7 +233,7 @@ func CreateService(w http.ResponseWriter, r *http.Request) {
 // @Description  Returns all services created by the authenticated artisan, optionally filtered by category_id.
 // @Tags         Artisan Services
 // @Produce      json
-// @Param        category_id  query  int  false  "Filter by category"
+// @Param        category_id  query  string  false  "Filter by category UUID"
 // @Success      200  {object}  object{status=string,count=int,data=[]Service}
 // @Router       /artisan/services [get]
 // @Security     BearerAuth
@@ -258,7 +263,7 @@ func GetMyServices(w http.ResponseWriter, r *http.Request) {
 		WHERE artisan_id = $1`
 
 	if catStr := r.URL.Query().Get("category_id"); catStr != "" {
-		catID, err := strconv.Atoi(catStr)
+		catID, err := uuid.Parse(catStr)
 		if err != nil {
 			utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
 			return
@@ -297,7 +302,7 @@ func GetMyServices(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/services
+// GET /artisan/{id}/services
 // ============================================================================
 // Public — clients browse an artisan's active services before booking.
 
@@ -307,10 +312,10 @@ func GetMyServices(w http.ResponseWriter, r *http.Request) {
 // @Tags         Artisan Services
 // @Produce      json
 // @Param        id           path   string  true   "Artisan UUID"
-// @Param        category_id  query  int     false  "Filter by category"
+// @Param        category_id  query  string  false  "Filter by category UUID"
 // @Success      200  {object}  object{status=string,count=int,data=[]object}
 // @Failure      404  {object}  object{error=string}
-// @Router       /artisans/{id}/services [get]
+// @Router       /artisan/{id}/services [get]
 func GetArtisanServices(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -337,7 +342,7 @@ func GetArtisanServices(w http.ResponseWriter, r *http.Request) {
 		WHERE s.artisan_id = $1 AND s.is_active = TRUE`
 
 	if catStr := r.URL.Query().Get("category_id"); catStr != "" {
-		catID, err := strconv.Atoi(catStr)
+		catID, err := uuid.Parse(catStr)
 		if err != nil {
 			utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
 			return
@@ -646,9 +651,9 @@ func AddServiceOption(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type request struct {
-		VariationTypeID int     `json:"variation_type_id"`
-		Label           string  `json:"label"`
-		PriceModifier   float64 `json:"price_modifier"`
+		VariationTypeID uuid.UUID `json:"variation_type_id"`
+		Label           string    `json:"label"`
+		PriceModifier   float64   `json:"price_modifier"`
 	}
 
 	var req request
@@ -660,7 +665,7 @@ func AddServiceOption(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	if req.VariationTypeID == 0 {
+	if req.VariationTypeID == uuid.Nil {
 		utils.WriteError(w, "variation_type_id is required", http.StatusBadRequest)
 		return
 	}
@@ -677,7 +682,7 @@ func AddServiceOption(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	// Verify service belongs to this artisan and is active
-	var categoryID int
+	var categoryID uuid.UUID
 	err = db.QueryRow(ctx, `
 		SELECT category_id FROM artisan_services
 		WHERE id = $1 AND artisan_id = $2 AND is_active = TRUE
@@ -809,13 +814,13 @@ func GetServiceOptions(w http.ResponseWriter, r *http.Request) {
 		CreatedAt     time.Time `json:"created_at"`
 	}
 	type VariationGroup struct {
-		VariationTypeID    int          `json:"variation_type_id"`
+		VariationTypeID    uuid.UUID    `json:"variation_type_id"`
 		VariationTypeLabel string       `json:"variation_type_label"`
 		Options            []OptionItem `json:"options"`
 	}
 
-	groupMap := make(map[int]*VariationGroup)
-	groupOrder := make([]int, 0)
+	groupMap := make(map[uuid.UUID]*VariationGroup)
+	groupOrder := make([]uuid.UUID, 0)
 
 	for rows.Next() {
 		var opt ServiceOption

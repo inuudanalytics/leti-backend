@@ -32,7 +32,7 @@ var upgrader = websocket.Upgrader{
 var Hub *chathub.Hub
 
 // ============================================================================
-// WS  GET /ws
+// WS  GET /chat/ws
 // ============================================================================
 
 // ServeWS godoc
@@ -59,7 +59,7 @@ var Hub *chathub.Hub
 // @Tags         Chat
 // @Success      101  {string}  string  "Switching Protocols"
 // @Failure      401  {object}  object{error=string}
-// @Router       /ws/chat [get]
+// @Router       /chat/ws [get]
 // @Security     BearerAuth
 func ServeWS(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)

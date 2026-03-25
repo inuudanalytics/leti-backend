@@ -423,7 +423,7 @@ func handleJobPayment(
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO platform_commissions (job_id, artisan_id, amount, status)
 		VALUES ($1, $2, $3, 'pending')
-		ON CONFLICT (job_id) DO NOTHING
+		ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO NOTHING
 	`, jobID, artisanID, commission); err != nil {
 		return fmt.Errorf("job_payment: failed to upsert commission: %w", err)
 	}
@@ -533,7 +533,7 @@ func handleBookingPayment(
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO platform_commissions (booking_id, artisan_id, amount, status)
 		VALUES ($1, $2, $3, 'pending')
-		ON CONFLICT (booking_id) DO NOTHING
+		ON CONFLICT (booking_id) WHERE booking_id IS NOT NULL DO NOTHING
 	`, bookingID, artisanID, commission); err != nil {
 		return fmt.Errorf("booking_payment: failed to upsert commission: %w", err)
 	}

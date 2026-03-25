@@ -45,7 +45,7 @@ type PortfolioImage struct {
 }
 
 // ============================================================================
-// GET /categories  — list all job categories (public)
+// GET /artisan/categories  — list all job categories (public)
 // ============================================================================
 
 // GetAllCategories godoc
@@ -54,7 +54,7 @@ type PortfolioImage struct {
 // @Tags         Categories
 // @Produce      json
 // @Success      200  {object}  object{status=string,count=int,data=[]CategoryInfo}
-// @Router       /categories [get]
+// @Router       /artisan/categories [get]
 func GetAllCategories(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -266,7 +266,7 @@ func GetMyCategories(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/categories
+// GET /artisan/{id}/categories
 // ============================================================================
 
 // GetArtisanCategories godoc
@@ -277,7 +277,7 @@ func GetMyCategories(w http.ResponseWriter, r *http.Request) {
 // @Param        id  path  string  true  "Artisan UUID"
 // @Success      200  {object}  object{status=string,count=int,data=[]ArtisanCategory}
 // @Failure      400  {object}  object{error=string}
-// @Router       /artisans/{id}/categories [get]
+// @Router       /artisan/{id}/categories [get]
 func GetArtisanCategories(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -729,7 +729,7 @@ func GetMyPortfolioImages(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/categories/{categoryId}/portfolio
+// GET /artisan/{id}/categories/{categoryId}/portfolio
 // ============================================================================
 
 // GetArtisanPortfolioImages godoc
@@ -738,9 +738,9 @@ func GetMyPortfolioImages(w http.ResponseWriter, r *http.Request) {
 // @Tags         Artisan Profile
 // @Produce      json
 // @Param        id          path  string  true  "Artisan UUID"
-// @Param        categoryId  path  int     true  "Category ID (integer)"
+// @Param        categoryId  path  string     true  "Category uuid"
 // @Success      200  {object}  object{status=string,count=int,data=[]PortfolioImage}
-// @Router       /artisans/{id}/categories/{categoryId}/portfolio [get]
+// @Router       /artisan/{id}/categories/{categoryId}/portfolio [get]
 func GetArtisanPortfolioImages(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -811,7 +811,7 @@ func GetArtisanPortfolioImages(w http.ResponseWriter, r *http.Request) {
 // @Tags         Artisan Profile
 // @Accept       json
 // @Produce      json
-// @Param        categoryId  path  int     true  "Category ID (integer)"
+// @Param        categoryId  path  string     true  "Category uuid"
 // @Param        imageId     path  string  true  "Image UUID"
 // @Param        body        body  object{caption=string,sort_order=int}  true  "Fields to update"
 // @Success      200  {object}  object{status=string,message=string,data=PortfolioImage}

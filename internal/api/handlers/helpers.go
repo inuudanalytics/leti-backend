@@ -581,7 +581,7 @@ func NullableString(s string) interface{} {
 
 // slotIsBooked is a helper used in booking creation to check slot conflicts
 // under a transaction lock.
-func SlotIsBooked(ctx context.Context, tx pgx.Tx, artisanID uuid.UUID, categoryID int, date, startTime string) (bool, error) {
+func SlotIsBooked(ctx context.Context, tx pgx.Tx, artisanID uuid.UUID, categoryID uuid.UUID, date, startTime string) (bool, error) {
 	var count int
 	err := tx.QueryRow(ctx, `
 		SELECT COUNT(*) FROM artisan_bookings

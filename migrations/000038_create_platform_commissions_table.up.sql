@@ -1,6 +1,6 @@
 CREATE TABLE platform_commissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
     booking_id UUID REFERENCES artisan_bookings(id) ON DELETE CASCADE,
     artisan_id UUID NOT NULL REFERENCES users(id),
     amount DECIMAL(15,2) NOT NULL CHECK (amount > 0),
@@ -21,6 +21,10 @@ CREATE INDEX idx_platform_commissions_status ON platform_commissions(status);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_commission_booking
     ON platform_commissions(booking_id)
     WHERE booking_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_commission_job
+    ON platform_commissions(job_id)
+    WHERE job_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_platform_commissions_booking_id
     ON platform_commissions(booking_id)

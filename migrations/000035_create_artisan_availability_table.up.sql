@@ -13,6 +13,9 @@ CREATE TABLE artisan_availability (
         FOREIGN KEY (artisan_id, category_id)
         REFERENCES artisan_categories(artisan_id, category_id)
         ON DELETE CASCADE,
+
+    CONSTRAINT uq_availability_window
+        UNIQUE (artisan_id, category_id, weekday, start_time);
  
     CONSTRAINT chk_availability_window
         CHECK (end_time > start_time)

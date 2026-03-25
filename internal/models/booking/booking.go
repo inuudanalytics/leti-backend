@@ -9,7 +9,7 @@ import (
 type Availability struct {
 	ID         uuid.UUID `json:"id"`
 	ArtisanID  uuid.UUID `json:"artisan_id"`
-	CategoryID int       `json:"category_id"`
+	CategoryID uuid.UUID `json:"category_id"`
 	Weekday    int       `json:"weekday"`
 	StartTime  string    `json:"start_time"`
 	EndTime    string    `json:"end_time"`
@@ -22,7 +22,7 @@ type Availability struct {
 type AvailabilityOverride struct {
 	ID           uuid.UUID `json:"id"`
 	ArtisanID    uuid.UUID `json:"artisan_id"`
-	CategoryID   int       `json:"category_id"`
+	CategoryID   uuid.UUID `json:"category_id"`
 	OverrideDate string    `json:"override_date"` // "YYYY-MM-DD"
 	IsAvailable  bool      `json:"is_available"`
 	Note         *string   `json:"note,omitempty"`
@@ -42,7 +42,7 @@ type Booking struct {
 	ID               uuid.UUID  `json:"id"`
 	ClientID         uuid.UUID  `json:"client_id"`
 	ArtisanID        uuid.UUID  `json:"artisan_id"`
-	CategoryID       int        `json:"category_id"`
+	CategoryID       uuid.UUID  `json:"category_id"`
 	ServiceID        *uuid.UUID `json:"service_id,omitempty"`
 	ServiceOptionID  *uuid.UUID `json:"service_option_id,omitempty"`
 	BookingDate      string     `json:"booking_date"`

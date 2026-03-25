@@ -1610,21 +1610,25 @@ const docTemplate = `{
                 }
             }
         },
-        "/artisan/address": {
+        "/artisan-reviews/{id}/replies": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns all addresses for the authenticated artisan.",
+                "description": "Returns all replies on a specific review, ordered oldest first.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Artisan Address"
+                    "Reviews"
                 ],
-                "summary": "Get artisan addresses",
+                "summary": "Get replies for a review",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Review UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1637,7 +1641,7 @@ const docTemplate = `{
                                 "data": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/definitions/profilesettings.Address"
+                                        "type": "object"
                                     }
                                 },
                                 "status": {
@@ -1646,19 +1650,8 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -1669,14 +1662,16 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
+            }
+        },
+        "/artisan-reviews/{id}/reply": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Adds a home or work address for the authenticated artisan. Only one home address is allowed (enforced by DB constraint). Multiple work addresses are allowed; the first work address is automatically set as primary.",
+                "description": "The artisan can reply once to any review on their profile. The client can reply once after the artisan has responded. One reply per role per review.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1684,43 +1679,26 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Artisan Address"
+                    "Reviews"
                 ],
-                "summary": "Add artisan address",
+                "summary": "Reply to a review",
                 "parameters": [
                     {
-                        "description": "Address payload. address_type must be 'home' or 'work'. is_primary only applies to work addresses.",
+                        "type": "string",
+                        "description": "Review UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reply text",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "type": "object",
                             "properties": {
-                                "address_type": {
-                                    "type": "string"
-                                },
-                                "city": {
-                                    "type": "string"
-                                },
-                                "country": {
-                                    "type": "string"
-                                },
-                                "is_primary": {
-                                    "type": "boolean"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "latitude": {
-                                    "type": "number"
-                                },
-                                "longitude": {
-                                    "type": "number"
-                                },
-                                "state": {
-                                    "type": "string"
-                                },
-                                "street": {
+                                "body": {
                                     "type": "string"
                                 }
                             }
@@ -1728,13 +1706,13 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "properties": {
                                 "data": {
-                                    "$ref": "#/definitions/profilesettings.Address"
+                                    "type": "object"
                                 },
                                 "message": {
                                     "type": "string"
@@ -1747,17 +1725,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -1778,59 +1745,6 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisan/address/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes a specific address for the authenticated artisan. Cannot delete a primary work address if other work addresses exist — set another as primary first.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Address"
-                ],
-                "summary": "Delete artisan address",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Address UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1854,14 +1768,16 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "patch": {
+            }
+        },
+        "/artisan-reviews/{id}/review": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Partially updates a specific address for the authenticated artisan. Only provided fields are updated. Coordinates are updated together — both latitude and longitude must be provided if updating location.",
+                "description": "A client can leave a rating and comment for an artisan after a completed and paid booking. Only one review per client per artisan — subsequent calls update the existing review.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1869,45 +1785,30 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Artisan Address"
+                    "Reviews"
                 ],
-                "summary": "Update artisan address",
+                "summary": "Leave a review for an artisan",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Address UUID",
+                        "description": "Artisan UUID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Fields to update (all optional)",
+                        "description": "rating 1–5",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "type": "object",
                             "properties": {
-                                "city": {
+                                "comment": {
                                     "type": "string"
                                 },
-                                "country": {
-                                    "type": "string"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "latitude": {
-                                    "type": "number"
-                                },
-                                "longitude": {
-                                    "type": "number"
-                                },
-                                "state": {
-                                    "type": "string"
-                                },
-                                "street": {
-                                    "type": "string"
+                                "rating": {
+                                    "type": "integer"
                                 }
                             }
                         }
@@ -1920,7 +1821,21 @@ const docTemplate = `{
                             "type": "object",
                             "properties": {
                                 "data": {
-                                    "$ref": "#/definitions/profilesettings.Address"
+                                    "type": "object",
+                                    "properties": {
+                                        "avg_rating": {
+                                            "type": "number"
+                                        },
+                                        "rating": {
+                                            "type": "integer"
+                                        },
+                                        "review_id": {
+                                            "type": "string"
+                                        },
+                                        "total_reviews": {
+                                            "type": "integer"
+                                        }
+                                    }
                                 },
                                 "message": {
                                     "type": "string"
@@ -1933,6 +1848,17 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -1956,28 +1882,35 @@ const docTemplate = `{
                 }
             }
         },
-        "/artisan/address/{id}/primary": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Sets a work address as the primary work address for the authenticated artisan. Only work addresses can be set as primary.",
+        "/artisan-reviews/{id}/reviews": {
+            "get": {
+                "description": "Returns paginated reviews for a specific artisan, including a rating summary breakdown and any replies on each review.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Artisan Address"
+                    "Reviews"
                 ],
-                "summary": "Set artisan primary work address",
+                "summary": "Get reviews for an artisan",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Address UUID",
+                        "description": "Artisan UUID",
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1986,22 +1919,23 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "properties": {
-                                "message": {
-                                    "type": "string"
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "pagination": {
+                                    "type": "object"
                                 },
                                 "status": {
                                     "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
+                                },
+                                "summary": {
+                                    "type": "object"
                                 }
                             }
                         }
@@ -2037,8 +1971,8 @@ const docTemplate = `{
                 "summary": "Get own weekly availability",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Filter by category",
+                        "type": "string",
+                        "description": "Filter by category UUID",
                         "name": "category_id",
                         "in": "query"
                     }
@@ -2071,7 +2005,7 @@ const docTemplate = `{
                 "summary": "Set weekly availability window",
                 "parameters": [
                     {
-                        "description": "weekday: 0=Sun…6=Sat; times in HH:MM format",
+                        "description": "weekday: 0=Sun…6=Sat; times in HH:MM format; category_id is a UUID",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2079,7 +2013,7 @@ const docTemplate = `{
                             "type": "object",
                             "properties": {
                                 "category_id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "end_time": {
                                     "type": "string"
@@ -2146,7 +2080,7 @@ const docTemplate = `{
                 "summary": "Block or open a specific date",
                 "parameters": [
                     {
-                        "description": "date in YYYY-MM-DD format",
+                        "description": "date in YYYY-MM-DD format; category_id is a UUID",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2154,7 +2088,7 @@ const docTemplate = `{
                             "type": "object",
                             "properties": {
                                 "category_id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "date": {
                                     "type": "string"
@@ -2231,323 +2165,6 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisan/bank": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns all bank accounts for the authenticated artisan, primary account first.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Bank Details"
-                ],
-                "summary": "Get artisan bank accounts",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/profilesettings.BankDetail"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Adds a bank account for the authenticated artisan. The first account is automatically set as primary. All subsequent accounts must share the same account name as the primary (to prevent identity fraud). A Paystack transfer recipient is created for each account.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Bank Details"
-                ],
-                "summary": "Add artisan bank account",
-                "parameters": [
-                    {
-                        "description": "Bank account payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "account_name": {
-                                    "type": "string"
-                                },
-                                "account_number": {
-                                    "type": "string"
-                                },
-                                "bank_code": {
-                                    "type": "string"
-                                },
-                                "bank_name": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/definitions/profilesettings.BankDetail"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisan/bank/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes a bank account. Cannot delete the only account or the primary account (set another as primary first).",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Bank Details"
-                ],
-                "summary": "Delete artisan bank account",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bank detail UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisan/bank/{id}/primary": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Marks a specific bank account as the artisan's primary payout account. The target account name must match the current primary account name.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Bank Details"
-                ],
-                "summary": "Set artisan primary bank account",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bank detail UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -2962,8 +2579,8 @@ const docTemplate = `{
                 "summary": "Update a portfolio image",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Category ID (integer)",
+                        "type": "string",
+                        "description": "Category uuid",
                         "name": "categoryId",
                         "in": "path",
                         "required": true
@@ -3025,6 +2642,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/artisan/categories/{id}/variation-types": {
+            "get": {
+                "description": "Returns the platform-defined variation types for a job category. Artisans use these to configure their service pricing options.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Services"
+                ],
+                "summary": "Get variation types for a category",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/artisanprofilesettings.VariationType"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/artisan/services": {
             "get": {
                 "security": [
@@ -3042,8 +2704,8 @@ const docTemplate = `{
                 "summary": "Get own services",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "description": "Filter by category",
+                        "type": "string",
+                        "description": "Filter by category UUID",
                         "name": "category_id",
                         "in": "query"
                     }
@@ -3101,7 +2763,7 @@ const docTemplate = `{
                                     "type": "number"
                                 },
                                 "category_id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "description": {
                                     "type": "string"
@@ -3588,120 +3250,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/artisans/{id}/availability": {
-            "get": {
-                "description": "Returns the recurring weekly schedule and any upcoming date overrides for a specific artisan/category. Useful for displaying a calendar UI before choosing a date.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Booking"
-                ],
-                "summary": "Get an artisan's public availability schedule",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Artisan UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Category ID",
-                        "name": "category_id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/booking.ArtisanAvailabilityResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisans/{id}/available-slots": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns a day-by-day availability breakdown for an artisan within a given date range (max 60 days). For each date: checks the weekday recurring schedule, applies any date-level overrides, then subtracts confirmed/pending bookings to determine if the slot is still open.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Booking"
-                ],
-                "summary": "Get available slots for an artisan",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Artisan UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Category ID",
-                        "name": "category_id",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Start date YYYY-MM-DD (inclusive)",
-                        "name": "from",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "End date YYYY-MM-DD (inclusive, max 60 days from from)",
-                        "name": "to",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/booking.AvailableSlotsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisans/{id}/categories": {
+        "/artisan/{id}/categories": {
             "get": {
                 "description": "Returns the categories registered on a specific artisan's profile, with category details populated.",
                 "produces": [
@@ -3755,7 +3304,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/artisans/{id}/categories/{categoryId}/portfolio": {
+        "/artisan/{id}/categories/{categoryId}/portfolio": {
             "get": {
                 "description": "Returns all portfolio images for a specific artisan and category.",
                 "produces": [
@@ -3774,8 +3323,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "Category ID (integer)",
+                        "type": "string",
+                        "description": "Category uuid",
                         "name": "categoryId",
                         "in": "path",
                         "required": true
@@ -3805,191 +3354,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/artisans/{id}/review": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "A client can leave a rating and comment for an artisan after a completed and paid booking. Only one review per client per artisan — subsequent calls update the existing review.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reviews"
-                ],
-                "summary": "Leave a review for an artisan",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Artisan UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "rating 1–5",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "comment": {
-                                    "type": "string"
-                                },
-                                "rating": {
-                                    "type": "integer"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object",
-                                    "properties": {
-                                        "avg_rating": {
-                                            "type": "number"
-                                        },
-                                        "rating": {
-                                            "type": "integer"
-                                        },
-                                        "review_id": {
-                                            "type": "string"
-                                        },
-                                        "total_reviews": {
-                                            "type": "integer"
-                                        }
-                                    }
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisans/{id}/reviews": {
-            "get": {
-                "description": "Returns paginated reviews for a specific artisan, including a rating summary breakdown and any replies on each review.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reviews"
-                ],
-                "summary": "Get reviews for an artisan",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Artisan UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page (default 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page (default 20)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object"
-                                    }
-                                },
-                                "pagination": {
-                                    "type": "object"
-                                },
-                                "status": {
-                                    "type": "string"
-                                },
-                                "summary": {
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/artisans/{id}/services": {
+        "/artisan/{id}/services": {
             "get": {
                 "description": "Returns all active services for a specific artisan. Clients use this to browse before creating a booking.",
                 "produces": [
@@ -4008,8 +3373,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by category",
+                        "type": "string",
+                        "description": "Filter by category UUID",
                         "name": "category_id",
                         "in": "query"
                     }
@@ -6042,7 +5407,7 @@ const docTemplate = `{
                                     "type": "string"
                                 },
                                 "category_id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "note": {
                                     "type": "string"
@@ -6091,6 +5456,119 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/artisan/{id}/availability": {
+            "get": {
+                "description": "Returns the recurring weekly schedule and any upcoming date overrides for a specific artisan/category. Useful for displaying a calendar UI before choosing a date.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Booking"
+                ],
+                "summary": "Get an artisan's public availability schedule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Artisan UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category UUID",
+                        "name": "category_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/booking.ArtisanAvailabilityResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/bookings/artisans/{id}/available-slots": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a day-by-day availability breakdown for an artisan within a given date range (max 60 days). For each date: checks the weekday recurring schedule, applies any date-level overrides, then subtracts confirmed/pending bookings to determine if the slot is still open.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Booking"
+                ],
+                "summary": "Get available slots for an artisan",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Artisan UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Category UUID",
+                        "name": "category_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Start date YYYY-MM-DD (inclusive)",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date YYYY-MM-DD (inclusive, max 60 days from from)",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/booking.AvailableSlotsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -6519,94 +5997,6 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/categories": {
-            "get": {
-                "description": "Returns all platform job categories. Used by clients and artisans to browse available service types.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Categories"
-                ],
-                "summary": "List all job categories",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/artisanprofilesettings.CategoryInfo"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/categories/{id}/variation-types": {
-            "get": {
-                "description": "Returns the platform-defined variation types for a job category. Artisans use these to configure their service pricing options.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Artisan Services"
-                ],
-                "summary": "Get variation types for a category",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Category ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/artisanprofilesettings.VariationType"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -7187,721 +6577,27 @@ const docTemplate = `{
                 }
             }
         },
-        "/client/address": {
+        "/chat/ws": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all addresses for the authenticated client.",
-                "produces": [
-                    "application/json"
-                ],
+                "description": "Upgrades the connection to a WebSocket. The authenticated user is registered with the chat hub. All chat messaging, typing indicators, and read receipts happen over this connection.\n\n**Incoming frames (client → server):**\n\nSend a text message:\n` + "`" + `{\"type\":\"message\",\"conversation_id\":\"\u003cuuid\u003e\",\"content\":\"Hello!\"}` + "`" + `\n\nMark messages as read:\n` + "`" + `{\"type\":\"read\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\n\nTyping indicator:\n` + "`" + `{\"type\":\"typing\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\n\n**Outgoing frames (server → client):**\n\nNew message: ` + "`" + `{\"type\":\"message\",\"payload\":{...Message}}` + "`" + `\nRead receipt: ` + "`" + `{\"type\":\"read\",\"payload\":{\"conversation_id\":\"...\",\"reader_id\":\"...\"}}` + "`" + `\nTyping: ` + "`" + `{\"type\":\"typing\",\"payload\":{\"conversation_id\":\"...\",\"sender_id\":\"...\"}}` + "`" + `\nError: ` + "`" + `{\"type\":\"error\",\"payload\":{\"code\":\"...\",\"message\":\"...\"}}` + "`" + `",
                 "tags": [
-                    "Client Address"
+                    "Chat"
                 ],
-                "summary": "Get client addresses",
+                "summary": "Connect to the chat WebSocket",
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "101": {
+                        "description": "Switching Protocols",
                         "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/profilesettings.Address"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
+                            "type": "string"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Adds a home or work address for the authenticated client. Only one home address is allowed (enforced by DB constraint). Multiple work addresses are allowed; the first work address is automatically set as primary.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Address"
-                ],
-                "summary": "Add client address",
-                "parameters": [
-                    {
-                        "description": "Address payload. address_type must be 'home' or 'work'. is_primary only applies to work addresses.",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "address_type": {
-                                    "type": "string"
-                                },
-                                "city": {
-                                    "type": "string"
-                                },
-                                "country": {
-                                    "type": "string"
-                                },
-                                "is_primary": {
-                                    "type": "boolean"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "latitude": {
-                                    "type": "number"
-                                },
-                                "longitude": {
-                                    "type": "number"
-                                },
-                                "state": {
-                                    "type": "string"
-                                },
-                                "street": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/definitions/profilesettings.Address"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/client/address/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes a specific address for the authenticated client. Cannot delete a primary work address if other work addresses exist — set another as primary first.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Address"
-                ],
-                "summary": "Delete client address",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Address UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Partially updates a specific address for the authenticated client.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Address"
-                ],
-                "summary": "Update client address",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Address UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Fields to update (all optional)",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "city": {
-                                    "type": "string"
-                                },
-                                "country": {
-                                    "type": "string"
-                                },
-                                "label": {
-                                    "type": "string"
-                                },
-                                "latitude": {
-                                    "type": "number"
-                                },
-                                "longitude": {
-                                    "type": "number"
-                                },
-                                "state": {
-                                    "type": "string"
-                                },
-                                "street": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/definitions/profilesettings.Address"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/client/address/{id}/primary": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Sets a work address as the primary work address for the authenticated client. Only work addresses can be set as primary.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Address"
-                ],
-                "summary": "Set client primary work address",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Address UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/client/bank": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Returns all bank accounts for the authenticated client, primary account first.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Bank Details"
-                ],
-                "summary": "Get client bank accounts",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/definitions/profilesettings.BankDetail"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Adds a bank account for the authenticated client. The first account is automatically set as primary. All subsequent accounts must share the same account name as the primary. A Paystack transfer recipient is created for each account.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Bank Details"
-                ],
-                "summary": "Add client bank account",
-                "parameters": [
-                    {
-                        "description": "Bank account payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "account_name": {
-                                    "type": "string"
-                                },
-                                "account_number": {
-                                    "type": "string"
-                                },
-                                "bank_code": {
-                                    "type": "string"
-                                },
-                                "bank_name": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "$ref": "#/definitions/profilesettings.BankDetail"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/client/bank/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Deletes a bank account. Cannot delete the only account or the primary account (set another as primary first).",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Bank Details"
-                ],
-                "summary": "Delete client bank account",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bank detail UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/client/bank/{id}/primary": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Marks a specific bank account as the client's primary payout account. The target account name must match the current primary account name.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Client Bank Details"
-                ],
-                "summary": "Set client primary bank account",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bank detail UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -8241,7 +6937,1461 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/address": {
+        "/profile/artisan/address": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all addresses for the authenticated artisan.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Address"
+                ],
+                "summary": "Get artisan addresses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/profilesettings.Address"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a home or work address for the authenticated artisan. Only one home address is allowed (enforced by DB constraint). Multiple work addresses are allowed; the first work address is automatically set as primary.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Address"
+                ],
+                "summary": "Add artisan address",
+                "parameters": [
+                    {
+                        "description": "Address payload. address_type must be 'home' or 'work'. is_primary only applies to work addresses.",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "address_type": {
+                                    "type": "string"
+                                },
+                                "city": {
+                                    "type": "string"
+                                },
+                                "country": {
+                                    "type": "string"
+                                },
+                                "is_primary": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "state": {
+                                    "type": "string"
+                                },
+                                "street": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.Address"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/artisan/address/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a specific address for the authenticated artisan. Cannot delete a primary work address if other work addresses exist — set another as primary first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Address"
+                ],
+                "summary": "Delete artisan address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Partially updates a specific address for the authenticated artisan. Only provided fields are updated. Coordinates are updated together — both latitude and longitude must be provided if updating location.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Address"
+                ],
+                "summary": "Update artisan address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update (all optional)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "city": {
+                                    "type": "string"
+                                },
+                                "country": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "state": {
+                                    "type": "string"
+                                },
+                                "street": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.Address"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/artisan/address/{id}/primary": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets a work address as the primary work address for the authenticated artisan. Only work addresses can be set as primary.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Address"
+                ],
+                "summary": "Set artisan primary work address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/artisan/bank": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all bank accounts for the authenticated artisan, primary account first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Bank Details"
+                ],
+                "summary": "Get artisan bank accounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/profilesettings.BankDetail"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a bank account for the authenticated artisan. The first account is automatically set as primary. All subsequent accounts must share the same account name as the primary (to prevent identity fraud). A Paystack transfer recipient is created for each account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Bank Details"
+                ],
+                "summary": "Add artisan bank account",
+                "parameters": [
+                    {
+                        "description": "Bank account payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "account_name": {
+                                    "type": "string"
+                                },
+                                "account_number": {
+                                    "type": "string"
+                                },
+                                "bank_code": {
+                                    "type": "string"
+                                },
+                                "bank_name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.BankDetail"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/artisan/bank/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a bank account. Cannot delete the only account or the primary account (set another as primary first).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Bank Details"
+                ],
+                "summary": "Delete artisan bank account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bank detail UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/artisan/bank/{id}/primary": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a specific bank account as the artisan's primary payout account. The target account name must match the current primary account name.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Bank Details"
+                ],
+                "summary": "Set artisan primary bank account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bank detail UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/address": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all addresses for the authenticated client.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Address"
+                ],
+                "summary": "Get client addresses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/profilesettings.Address"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a home or work address for the authenticated client. Only one home address is allowed (enforced by DB constraint). Multiple work addresses are allowed; the first work address is automatically set as primary.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Address"
+                ],
+                "summary": "Add client address",
+                "parameters": [
+                    {
+                        "description": "Address payload. address_type must be 'home' or 'work'. is_primary only applies to work addresses.",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "address_type": {
+                                    "type": "string"
+                                },
+                                "city": {
+                                    "type": "string"
+                                },
+                                "country": {
+                                    "type": "string"
+                                },
+                                "is_primary": {
+                                    "type": "boolean"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "state": {
+                                    "type": "string"
+                                },
+                                "street": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.Address"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/address/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a specific address for the authenticated client. Cannot delete a primary work address if other work addresses exist — set another as primary first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Address"
+                ],
+                "summary": "Delete client address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Partially updates a specific address for the authenticated client.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Address"
+                ],
+                "summary": "Update client address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update (all optional)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "city": {
+                                    "type": "string"
+                                },
+                                "country": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "latitude": {
+                                    "type": "number"
+                                },
+                                "longitude": {
+                                    "type": "number"
+                                },
+                                "state": {
+                                    "type": "string"
+                                },
+                                "street": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.Address"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/address/{id}/primary": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sets a work address as the primary work address for the authenticated client. Only work addresses can be set as primary.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Address"
+                ],
+                "summary": "Set client primary work address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/bank": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all bank accounts for the authenticated client, primary account first.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Bank Details"
+                ],
+                "summary": "Get client bank accounts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/profilesettings.BankDetail"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a bank account for the authenticated client. The first account is automatically set as primary. All subsequent accounts must share the same account name as the primary. A Paystack transfer recipient is created for each account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Bank Details"
+                ],
+                "summary": "Add client bank account",
+                "parameters": [
+                    {
+                        "description": "Bank account payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "account_name": {
+                                    "type": "string"
+                                },
+                                "account_number": {
+                                    "type": "string"
+                                },
+                                "bank_code": {
+                                    "type": "string"
+                                },
+                                "bank_name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/definitions/profilesettings.BankDetail"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/bank/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a bank account. Cannot delete the only account or the primary account (set another as primary first).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Bank Details"
+                ],
+                "summary": "Delete client bank account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bank detail UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/client/bank/{id}/primary": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks a specific bank account as the client's primary payout account. The target account name must match the current primary account name.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Client Bank Details"
+                ],
+                "summary": "Set client primary bank account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bank detail UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/profile/owner/address": {
             "get": {
                 "security": [
                     {
@@ -8423,7 +8573,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/address/{id}": {
+        "/profile/owner/address/{id}": {
             "delete": {
                 "security": [
                     {
@@ -8587,7 +8737,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/address/{id}/primary": {
+        "/profile/owner/address/{id}/primary": {
             "patch": {
                 "security": [
                     {
@@ -8651,7 +8801,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/bank": {
+        "/profile/owner/bank": {
             "get": {
                 "security": [
                     {
@@ -8818,7 +8968,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/bank/{id}": {
+        "/profile/owner/bank/{id}": {
             "delete": {
                 "security": [
                     {
@@ -8893,7 +9043,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/owner/bank/{id}/primary": {
+        "/profile/owner/bank/{id}/primary": {
             "patch": {
                 "security": [
                     {
@@ -8934,166 +9084,6 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/reviews/{id}/replies": {
-            "get": {
-                "description": "Returns all replies on a specific review, ordered oldest first.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reviews"
-                ],
-                "summary": "Get replies for a review",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Review UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "count": {
-                                    "type": "integer"
-                                },
-                                "data": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object"
-                                    }
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/reviews/{id}/reply": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "The artisan can reply once to any review on their profile. The client can reply once after the artisan has responded. One reply per role per review.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reviews"
-                ],
-                "summary": "Reply to a review",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Review UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Reply text",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "body": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "data": {
-                                    "type": "object"
-                                },
-                                "message": {
-                                    "type": "string"
-                                },
-                                "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -9418,39 +9408,6 @@ const docTemplate = `{
                                     "type": "object"
                                 },
                                 "status": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/ws/chat": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Upgrades the connection to a WebSocket. The authenticated user is registered with the chat hub. All chat messaging, typing indicators, and read receipts happen over this connection.\n\n**Incoming frames (client → server):**\n\nSend a text message:\n` + "`" + `{\"type\":\"message\",\"conversation_id\":\"\u003cuuid\u003e\",\"content\":\"Hello!\"}` + "`" + `\n\nMark messages as read:\n` + "`" + `{\"type\":\"read\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\n\nTyping indicator:\n` + "`" + `{\"type\":\"typing\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\n\n**Outgoing frames (server → client):**\n\nNew message: ` + "`" + `{\"type\":\"message\",\"payload\":{...Message}}` + "`" + `\nRead receipt: ` + "`" + `{\"type\":\"read\",\"payload\":{\"conversation_id\":\"...\",\"reader_id\":\"...\"}}` + "`" + `\nTyping: ` + "`" + `{\"type\":\"typing\",\"payload\":{\"conversation_id\":\"...\",\"sender_id\":\"...\"}}` + "`" + `\nError: ` + "`" + `{\"type\":\"error\",\"payload\":{\"code\":\"...\",\"message\":\"...\"}}` + "`" + `",
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "Connect to the chat WebSocket",
-                "responses": {
-                    "101": {
-                        "description": "Switching Protocols",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
                                     "type": "string"
                                 }
                             }
@@ -9792,7 +9749,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "variation_type_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "variation_type_label": {
                     "type": "string"
@@ -9803,10 +9760,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "label": {
                     "type": "string"
@@ -9942,7 +9899,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -9991,7 +9948,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "created_at": {
                     "type": "string"
@@ -10092,7 +10049,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "category_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "client_id": {
                     "type": "string"

@@ -21,7 +21,7 @@ func isClient(r *http.Request) bool {
 }
 
 // ============================================================================
-// POST /artisans/{id}/review  — client reviews an artisan they worked with
+// POST /artisan-reviews/{id}/review  — client reviews an artisan they worked with
 // ============================================================================
 
 // LeaveReview godoc
@@ -36,7 +36,7 @@ func isClient(r *http.Request) bool {
 // @Failure      400   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      404   {object}  object{error=string}
-// @Router       /artisans/{id}/review [post]
+// @Router       /artisan-reviews/{id}/review [post]
 // @Security     BearerAuth
 func LeaveReview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -209,7 +209,7 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/reviews  — get all reviews for an artisan (public)
+// GET /artisan-reviews/{id}/reviews  — get all reviews for an artisan (public)
 // ============================================================================
 
 // GetArtisanReviews godoc
@@ -222,7 +222,7 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query  int     false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,summary=object,count=int,data=[]object,pagination=object}
 // @Failure      404  {object}  object{error=string}
-// @Router       /artisans/{id}/reviews [get]
+// @Router       /artisan-reviews/{id}/reviews [get]
 func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -453,7 +453,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /reviews/{id}/reply  — artisan or client replies to a review (once each)
+// POST /artisan-reviews/{id}/reply  — artisan or client replies to a review (once each)
 // ============================================================================
 
 // ReplyToReview godoc
@@ -469,7 +469,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 // @Failure      403   {object}  object{error=string}
 // @Failure      404   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /reviews/{id}/reply [post]
+// @Router       /artisan-reviews/{id}/reply [post]
 // @Security     BearerAuth
 func ReplyToReview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -631,7 +631,7 @@ func ReplyToReview(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /reviews/{id}/replies  — get all replies for a review (public)
+// GET /artisan-reviews/{id}/replies  — get all replies for a review (public)
 // ============================================================================
 
 // GetReviewReplies godoc
@@ -642,7 +642,7 @@ func ReplyToReview(w http.ResponseWriter, r *http.Request) {
 // @Param        id  path  string  true  "Review UUID"
 // @Success      200  {object}  object{status=string,count=int,data=[]object}
 // @Failure      404  {object}  object{error=string}
-// @Router       /reviews/{id}/replies [get]
+// @Router       /artisan-reviews/{id}/replies [get]
 func GetReviewReplies(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)

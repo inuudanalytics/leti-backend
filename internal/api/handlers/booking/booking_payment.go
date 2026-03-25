@@ -134,7 +134,7 @@ func InitiateBookingPayment(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec(ctx, `
 		INSERT INTO platform_commissions (booking_id, artisan_id, amount, status)
 		VALUES ($1, $2, $3, 'pending')
-		ON CONFLICT (booking_id) DO NOTHING
+		ON CONFLICT (booking_id) WHERE booking_id IS NOT NULL DO NOTHING
 	`, bookingID, bk.ArtisanID, commission)
 	if err != nil {
 		utils.Logger.Errorf("failed to ensure commission record: %v", err)

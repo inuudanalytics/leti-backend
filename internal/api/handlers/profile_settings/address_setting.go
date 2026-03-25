@@ -71,7 +71,7 @@ var addrConfigs = map[string]addrConfig{
 }
 
 // ============================================================================
-// POST /artisan/address
+// POST /profile/artisan/address
 // ============================================================================
 
 // AddArtisanAddress godoc
@@ -86,14 +86,14 @@ var addrConfigs = map[string]addrConfig{
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /artisan/address [post]
+// @Router       /profile/artisan/address [post]
 // @Security     BearerAuth
 func AddArtisanAddress(w http.ResponseWriter, r *http.Request) {
 	addAddress(w, r, addrConfigs["artisan"])
 }
 
 // ============================================================================
-// GET /artisan/address
+// GET /profile/artisan/address
 // ============================================================================
 
 // GetArtisanAddresses godoc
@@ -104,14 +104,14 @@ func AddArtisanAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]Address}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /artisan/address [get]
+// @Router       /profile/artisan/address [get]
 // @Security     BearerAuth
 func GetArtisanAddresses(w http.ResponseWriter, r *http.Request) {
 	getAddresses(w, r, addrConfigs["artisan"])
 }
 
 // ============================================================================
-// PATCH /artisan/address/{id}
+// PATCH /profile/artisan/address/{id}
 // ============================================================================
 
 // UpdateArtisanAddress godoc
@@ -125,14 +125,14 @@ func GetArtisanAddresses(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string,data=Address}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /artisan/address/{id} [patch]
+// @Router       /profile/artisan/address/{id} [patch]
 // @Security     BearerAuth
 func UpdateArtisanAddress(w http.ResponseWriter, r *http.Request) {
 	updateAddress(w, r, addrConfigs["artisan"])
 }
 
 // ============================================================================
-// DELETE /artisan/address/{id}
+// DELETE /profile/artisan/address/{id}
 // ============================================================================
 
 // DeleteArtisanAddress godoc
@@ -144,14 +144,14 @@ func UpdateArtisanAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /artisan/address/{id} [delete]
+// @Router       /profile/artisan/address/{id} [delete]
 // @Security     BearerAuth
 func DeleteArtisanAddress(w http.ResponseWriter, r *http.Request) {
 	deleteAddress(w, r, addrConfigs["artisan"])
 }
 
 // ============================================================================
-// PATCH /artisan/address/{id}/primary
+// PATCH /profile/artisan/address/{id}/primary
 // ============================================================================
 
 // SetArtisanPrimaryAddress godoc
@@ -163,14 +163,14 @@ func DeleteArtisanAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /artisan/address/{id}/primary [patch]
+// @Router       /profile/artisan/address/{id}/primary [patch]
 // @Security     BearerAuth
 func SetArtisanPrimaryAddress(w http.ResponseWriter, r *http.Request) {
 	setPrimaryAddress(w, r, addrConfigs["artisan"])
 }
 
 // ============================================================================
-// POST /client/address
+// POST /profile/client/address
 // ============================================================================
 
 // AddClientAddress godoc
@@ -185,14 +185,14 @@ func SetArtisanPrimaryAddress(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /client/address [post]
+// @Router       /profile/client/address [post]
 // @Security     BearerAuth
 func AddClientAddress(w http.ResponseWriter, r *http.Request) {
 	addAddress(w, r, addrConfigs["client"])
 }
 
 // ============================================================================
-// GET /client/address
+// GET /profile/client/address
 // ============================================================================
 
 // GetClientAddresses godoc
@@ -203,14 +203,14 @@ func AddClientAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]Address}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /client/address [get]
+// @Router       /profile/client/address [get]
 // @Security     BearerAuth
 func GetClientAddresses(w http.ResponseWriter, r *http.Request) {
 	getAddresses(w, r, addrConfigs["client"])
 }
 
 // ============================================================================
-// PATCH /client/address/{id}
+// PATCH /profile/client/address/{id}
 // ============================================================================
 
 // UpdateClientAddress godoc
@@ -224,14 +224,14 @@ func GetClientAddresses(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string,data=Address}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /client/address/{id} [patch]
+// @Router       /profile/client/address/{id} [patch]
 // @Security     BearerAuth
 func UpdateClientAddress(w http.ResponseWriter, r *http.Request) {
 	updateAddress(w, r, addrConfigs["client"])
 }
 
 // ============================================================================
-// DELETE /client/address/{id}
+// DELETE /profile/client/address/{id}
 // ============================================================================
 
 // DeleteClientAddress godoc
@@ -243,14 +243,14 @@ func UpdateClientAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /client/address/{id} [delete]
+// @Router       /profile/client/address/{id} [delete]
 // @Security     BearerAuth
 func DeleteClientAddress(w http.ResponseWriter, r *http.Request) {
 	deleteAddress(w, r, addrConfigs["client"])
 }
 
 // ============================================================================
-// PATCH /client/address/{id}/primary
+// PATCH /profile/client/address/{id}/primary
 // ============================================================================
 
 // SetClientPrimaryAddress godoc
@@ -262,14 +262,14 @@ func DeleteClientAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /client/address/{id}/primary [patch]
+// @Router       /profile/client/address/{id}/primary [patch]
 // @Security     BearerAuth
 func SetClientPrimaryAddress(w http.ResponseWriter, r *http.Request) {
 	setPrimaryAddress(w, r, addrConfigs["client"])
 }
 
 // ============================================================================
-// POST /owner/address
+// POST /profile/owner/address
 // ============================================================================
 
 // AddOwnerAddress godoc
@@ -284,14 +284,14 @@ func SetClientPrimaryAddress(w http.ResponseWriter, r *http.Request) {
 // @Failure      401   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /owner/address [post]
+// @Router       /profile/owner/address [post]
 // @Security     BearerAuth
 func AddOwnerAddress(w http.ResponseWriter, r *http.Request) {
 	addAddress(w, r, addrConfigs["owner"])
 }
 
 // ============================================================================
-// GET /owner/address
+// GET /profile/owner/address
 // ============================================================================
 
 // GetOwnerAddresses godoc
@@ -302,14 +302,14 @@ func AddOwnerAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]Address}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /owner/address [get]
+// @Router       /profile/owner/address [get]
 // @Security     BearerAuth
 func GetOwnerAddresses(w http.ResponseWriter, r *http.Request) {
 	getAddresses(w, r, addrConfigs["owner"])
 }
 
 // ============================================================================
-// PATCH /owner/address/{id}
+// PATCH /profile/owner/address/{id}
 // ============================================================================
 
 // UpdateOwnerAddress godoc
@@ -323,14 +323,14 @@ func GetOwnerAddresses(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string,data=Address}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /owner/address/{id} [patch]
+// @Router       /profile/owner/address/{id} [patch]
 // @Security     BearerAuth
 func UpdateOwnerAddress(w http.ResponseWriter, r *http.Request) {
 	updateAddress(w, r, addrConfigs["owner"])
 }
 
 // ============================================================================
-// DELETE /owner/address/{id}
+// DELETE /profile/owner/address/{id}
 // ============================================================================
 
 // DeleteOwnerAddress godoc
@@ -342,14 +342,14 @@ func UpdateOwnerAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /owner/address/{id} [delete]
+// @Router       /profile/owner/address/{id} [delete]
 // @Security     BearerAuth
 func DeleteOwnerAddress(w http.ResponseWriter, r *http.Request) {
 	deleteAddress(w, r, addrConfigs["owner"])
 }
 
 // ============================================================================
-// PATCH /owner/address/{id}/primary
+// PATCH /profile/owner/address/{id}/primary
 // ============================================================================
 
 // SetOwnerPrimaryAddress godoc
@@ -361,7 +361,7 @@ func DeleteOwnerAddress(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /owner/address/{id}/primary [patch]
+// @Router       /profile/owner/address/{id}/primary [patch]
 // @Security     BearerAuth
 func SetOwnerPrimaryAddress(w http.ResponseWriter, r *http.Request) {
 	setPrimaryAddress(w, r, addrConfigs["owner"])
