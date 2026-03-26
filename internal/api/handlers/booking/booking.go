@@ -785,16 +785,32 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 // PATCH /bookings/{id}/complete
 // ============================================================================
+// Dual-confirmation model:
+//   - Artisan marks complete  → artisan_completed_at set, escrow NOT released
+//   - Client marks complete   → client_completed_at set, escrow released
+//   - Both have marked        → second call by either party triggers full release
+//
+// The conversation linked to this booking is scheduled to expire 24h after
+// both parties confirm.
 
 // CompleteBooking godoc
-// @Summary      Mark a booking as completed (artisan only)
-// @Description  Artisan marks a confirmed booking as completed after delivering the service. The escrow payment is released to the artisan at this point.
+// @Summary      Mark a booking as completed
+// @Description  Either the artisan or client can mark a booking as completed.
+//
+//	Escrow is only released when the CLIENT confirms — treating the
+//	client's confirmation as the authoritative satisfaction signal.
+//	If the artisan marks complete first, the booking moves to
+//	'awaiting_client_confirmation'. If the client marks complete
+//	(with or without the artisan), escrow is released immediately.
+//	The linked conversation is scheduled to close 24h after full completion.
+//
 // @Tags         Booking
 // @Produce      json
 // @Param        id  path  string  true  "Booking UUID"
 // @Success      200  {object}  object{status=string,message=string,booking=booking.Booking}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
+// @Failure      409  {object}  object{error=string}
 // @Router       /bookings/{id}/complete [patch]
 // @Security     BearerAuth
 func CompleteBooking(w http.ResponseWriter, r *http.Request) {
@@ -815,8 +831,8 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	role, _ := r.Context().Value(utils.ContextKey("role")).(string)
-	if role != "artisan" {
-		utils.WriteError(w, "only artisans can mark a booking as completed", http.StatusForbidden)
+	if role != "artisan" && role != "client" {
+		utils.WriteError(w, "only artisans and clients can mark a booking as completed", http.StatusForbidden)
 		return
 	}
 
@@ -826,10 +842,9 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
-	// Use a transaction: status update + escrow release must be atomic.
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		utils.Logger.Errorf("failed to begin complete tx: %v", err)
@@ -839,16 +854,21 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(ctx)
 
 	var bk booking.Booking
+	var clientCompletedAt, artisanCompletedAt *time.Time
+
 	err = tx.QueryRow(ctx, `
-		UPDATE artisan_bookings
-		SET    status = 'completed', completed_at = NOW(), updated_at = NOW()
-		WHERE  id = $1 AND artisan_id = $2 AND status = 'confirmed' AND payment_status = 'paid'
-		RETURNING id, client_id, artisan_id, category_id,
-		          service_id, service_option_id,
-		          booking_date::TEXT, start_time::TEXT, end_time::TEXT,
-		          total_price, address, note,
-		          status, payment_method, payment_status,
-		          confirmed_at, completed_at, created_at, updated_at
+		SELECT id, client_id, artisan_id, category_id,
+		       service_id, service_option_id,
+		       booking_date::TEXT, start_time::TEXT, end_time::TEXT,
+		       total_price, address, note,
+		       status, payment_method, payment_status,
+		       confirmed_at, completed_at, created_at, updated_at,
+		       client_completed_at, artisan_completed_at
+		FROM artisan_bookings
+		WHERE id = $1
+		  AND (client_id = $2 OR artisan_id = $2)
+		  AND status IN ('confirmed', 'awaiting_client_confirmation')
+		  AND payment_status = 'paid'
 	`, bookingID, userID).Scan(
 		&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
 		&bk.ServiceID, &bk.ServiceOptionID,
@@ -856,31 +876,92 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 		&bk.TotalPrice, &bk.Address, &bk.Note,
 		&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
 		&bk.ConfirmedAt, &bk.CompletedAt, &bk.CreatedAt, &bk.UpdatedAt,
+		&clientCompletedAt, &artisanCompletedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			var exists bool
 			_ = db.QueryRow(ctx,
-				`SELECT EXISTS(SELECT 1 FROM artisan_bookings WHERE id = $1 AND artisan_id = $2 AND status = 'confirmed')`,
-				bookingID, userID,
+				`SELECT EXISTS(
+					SELECT 1 FROM artisan_bookings
+					WHERE id = $1 AND (client_id = $2 OR artisan_id = $2)
+					  AND status = 'confirmed'
+				)`, bookingID, userID,
 			).Scan(&exists)
 			if exists {
 				utils.WriteError(w, "cannot complete booking: client payment has not been received yet", http.StatusConflict)
 				return
 			}
-			utils.WriteError(w, "booking not found or not confirmed", http.StatusNotFound)
+			utils.WriteError(w, "booking not found or not in a completable state", http.StatusNotFound)
 			return
 		}
-		utils.Logger.Errorf("failed to complete booking: %v", err)
+		utils.Logger.Errorf("failed to fetch booking for completion: %v", err)
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Release escrow to artisan wallet (net payout after 8% commission).
-	if err := ReleaseBookingEscrow(ctx, tx, bk.ID, bk.ArtisanID); err != nil {
-		utils.Logger.Errorf("escrow release failed for booking %s: %v", bk.ID, err)
+	if role == "artisan" && artisanCompletedAt != nil {
+		utils.WriteError(w, "you have already marked this booking as complete", http.StatusConflict)
+		return
+	}
+	if role == "client" && clientCompletedAt != nil {
+		utils.WriteError(w, "you have already marked this booking as complete", http.StatusConflict)
+		return
+	}
+
+	now := time.Now()
+	fullyComplete := false
+	var newStatus string
+	var responseMessage string
+
+	if role == "artisan" {
+		_, err = tx.Exec(ctx, `
+			UPDATE artisan_bookings
+			SET artisan_completed_at = $1,
+			    status               = 'awaiting_client_confirmation',
+			    updated_at           = $1
+			WHERE id = $2
+		`, now, bookingID)
+		newStatus = "awaiting_client_confirmation"
+		responseMessage = "booking marked as complete — waiting for client confirmation to release payment"
+
+	} else {
+		fullyComplete = true
+		_, err = tx.Exec(ctx, `
+			UPDATE artisan_bookings
+			SET client_completed_at = $1,
+			    completed_at        = $1,
+			    status              = 'completed',
+			    updated_at          = $1
+			WHERE id = $2
+		`, now, bookingID)
+		newStatus = "completed"
+		responseMessage = "booking completed — payment released to artisan"
+	}
+
+	if err != nil {
+		utils.Logger.Errorf("failed to update booking completion: %v", err)
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
+	}
+
+	if fullyComplete {
+		if err := ReleaseBookingEscrow(ctx, tx, bk.ID, bk.ArtisanID); err != nil {
+			utils.Logger.Errorf("escrow release failed for booking %s: %v", bk.ID, err)
+			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		chatExpiresAt := now.Add(24 * time.Hour)
+		_, err = tx.Exec(ctx, `
+			UPDATE conversations
+			SET chat_expires_at = $1
+			WHERE booking_id = $2
+			  AND deleted_at IS NULL
+		`, chatExpiresAt, bookingID)
+		if err != nil {
+			utils.Logger.Warnf("failed to set chat expiry for booking %s: %v", bookingID, err)
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -889,19 +970,22 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func() {
+	bk.Status = newStatus
+
+	go func(fullyComplete bool, role string, bk booking.Booking, artisanCompletedAt *time.Time) {
 		bgCtx := context.Background()
 
+		var artisanFirstName, serviceName string
 		var clientEmail, clientPhone, clientFirstName string
+
+		_ = sqlconnect.DB.QueryRow(bgCtx,
+			`SELECT first_name FROM users WHERE id = $1`, bk.ArtisanID,
+		).Scan(&artisanFirstName)
 		_ = sqlconnect.DB.QueryRow(bgCtx,
 			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
 			bk.ClientID,
 		).Scan(&clientEmail, &clientPhone, &clientFirstName)
 
-		var artisanFirstName, serviceName string
-		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, bk.ArtisanID,
-		).Scan(&artisanFirstName)
 		if bk.ServiceID != nil {
 			_ = sqlconnect.DB.QueryRow(bgCtx,
 				`SELECT name FROM artisan_services WHERE id = $1`, *bk.ServiceID,
@@ -911,51 +995,48 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 			serviceName = "Booking"
 		}
 
-		// In-app notification to client
-		utils.CreateNotification(bgCtx, bk.ClientID,
-			utils.NotifBookingCompleted,
-			"Booking Completed",
-			"Your booking has been completed. Please leave a review.",
-			map[string]interface{}{"booking_id": bk.ID},
-		)
+		if fullyComplete {
+			netPayout := bk.TotalPrice * 0.92
 
-		// In-app notification to artisan (payment released)
-		netPayout := bk.TotalPrice * 0.92 // 8% commission
-		utils.CreateNotification(bgCtx, bk.ArtisanID,
-			utils.NotifPaymentReleased,
-			"Payment Released",
-			fmt.Sprintf("₦%.2f has been released to your wallet for booking %s.", netPayout, bk.ID),
-			map[string]interface{}{"booking_id": bk.ID, "amount": netPayout},
-		)
+			utils.CreateNotification(bgCtx, bk.ClientID,
+				utils.NotifBookingCompleted,
+				"Booking Completed",
+				"Your booking has been completed. Please leave a review.",
+				map[string]interface{}{"booking_id": bk.ID},
+			)
+			utils.CreateNotification(bgCtx, bk.ArtisanID,
+				utils.NotifPaymentReleased,
+				"Payment Released",
+				fmt.Sprintf("₦%.2f has been released to your wallet.", netPayout),
+				map[string]interface{}{"booking_id": bk.ID, "amount": netPayout},
+			)
+			handlers.SendPushToUser(bk.ArtisanID, "Payment Released",
+				fmt.Sprintf("₦%.2f released to your wallet (after 8%% platform fee).", netPayout))
 
-		handlers.SendPushToUser(bk.ArtisanID, "Payment Released",
-			fmt.Sprintf("₦%.2f released to your wallet (after 8%% platform fee).", netPayout))
+			if clientEmail != "" {
+				utils.SendBookingCompletedEmail(clientEmail, clientFirstName, artisanFirstName, serviceName, bk.BookingDate)
+			}
+			if clientPhone != "" {
+				utils.SendBookingCompletedSMS(clientPhone, clientFirstName, artisanFirstName, serviceName)
+			}
 
-		// Email to client
-		if clientEmail != "" {
-			utils.SendBookingCompletedEmail(
-				clientEmail,
-				clientFirstName,
-				artisanFirstName,
-				serviceName,
-				bk.BookingDate,
+		} else {
+			utils.CreateNotification(bgCtx, bk.ClientID,
+				utils.NotifBookingCompleted,
+				"Artisan Has Marked Your Booking Complete",
+				"Please confirm that the service was delivered to release the artisan's payment.",
+				map[string]interface{}{"booking_id": bk.ID},
+			)
+			handlers.SendPushToUser(bk.ClientID,
+				"Confirm Booking Completion",
+				fmt.Sprintf("%s has marked your booking as complete. Tap to confirm.", artisanFirstName),
 			)
 		}
-
-		// SMS to client
-		if clientPhone != "" {
-			utils.SendBookingCompletedSMS(
-				clientPhone,
-				clientFirstName,
-				artisanFirstName,
-				serviceName,
-			)
-		}
-	}()
+	}(fullyComplete, role, bk, artisanCompletedAt)
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":  "success",
-		"message": "booking completed — escrow released to artisan",
+		"message": responseMessage,
 		"booking": bk,
 	})
 }

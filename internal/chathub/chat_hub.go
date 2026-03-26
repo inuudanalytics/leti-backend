@@ -33,8 +33,6 @@ type Client struct {
 	Role   string
 }
 
-// ReadPump pumps messages from the WebSocket connection to the hub.
-// Runs in its own goroutine per client.
 func (c *Client) ReadPump() {
 	defer func() {
 		c.hub.unregister <- c
@@ -61,8 +59,6 @@ func (c *Client) ReadPump() {
 	}
 }
 
-// WritePump pumps messages from the hub send channel to the WebSocket connection.
-// Runs in its own goroutine per client.
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -108,7 +104,6 @@ type Hub struct {
 	inbound    chan *inboundEnvelope
 }
 
-// New creates a Hub. Call go hub.Run() after creation.
 func New() *Hub {
 	return &Hub{
 		clients:    make(map[uuid.UUID]*Client),
@@ -118,7 +113,6 @@ func New() *Hub {
 	}
 }
 
-// NewClient creates a Client and queues it for registration with the hub.
 func (h *Hub) NewClient(conn *websocket.Conn, userID uuid.UUID, role string) *Client {
 	c := &Client{
 		hub:    h,
@@ -131,7 +125,6 @@ func (h *Hub) NewClient(conn *websocket.Conn, userID uuid.UUID, role string) *Cl
 	return c
 }
 
-// Run is the hub's main event loop. Call as a goroutine — blocks forever.
 func (h *Hub) Run() {
 	for {
 		select {
@@ -156,8 +149,6 @@ func (h *Hub) Run() {
 	}
 }
 
-// DeliverTo pushes an already-serialised payload to a connected user.
-// No-op if the user is offline (message is already persisted in DB).
 func (h *Hub) DeliverTo(userID uuid.UUID, payload []byte) {
 	h.sendTo(userID, payload)
 }
@@ -215,12 +206,16 @@ func (h *Hub) handleMessage(sender *Client, in *chatModels.IncomingWS) {
 
 	ctx := context.Background()
 
-	// Verify sender belongs to this conversation
+	// Fetch conversation — includes expiry timestamp
 	var ownerID, artisanID uuid.UUID
+	var chatExpiresAt *time.Time
+
 	err = db.QueryRow(ctx,
-		`SELECT owner_id, artisan_id FROM conversations WHERE id = $1 AND deleted_at IS NULL`,
+		`SELECT owner_id, artisan_id, chat_expires_at
+		 FROM conversations
+		 WHERE id = $1 AND deleted_at IS NULL`,
 		convoID,
-	).Scan(&ownerID, &artisanID)
+	).Scan(&ownerID, &artisanID, &chatExpiresAt)
 	if err != nil {
 		h.sendError(sender, "NOT_FOUND", "conversation not found")
 		return
@@ -228,6 +223,13 @@ func (h *Hub) handleMessage(sender *Client, in *chatModels.IncomingWS) {
 
 	if sender.UserID != ownerID && sender.UserID != artisanID {
 		h.sendError(sender, "FORBIDDEN", "you are not a participant of this conversation")
+		return
+	}
+
+	// Expiry check — reject writes once the 24h post-completion window closes
+	if chatExpiresAt != nil && time.Now().After(*chatExpiresAt) {
+		h.sendError(sender, "CONVERSATION_CLOSED",
+			"this conversation has been closed 24 hours after booking completion")
 		return
 	}
 
@@ -255,17 +257,14 @@ func (h *Hub) handleMessage(sender *Client, in *chatModels.IncomingWS) {
 
 	payload := buildPayload("message", msg)
 
-	// Determine recipient
 	recipientID := ownerID
 	if sender.UserID == ownerID {
 		recipientID = artisanID
 	}
 
-	// Ack to sender and deliver to recipient
 	h.sendTo(sender.UserID, payload)
 	h.sendTo(recipientID, payload)
 
-	// Push notification to recipient (non-blocking, only if offline)
 	if PushNotifier != nil {
 		go PushNotifier(recipientID, "New Message", in.Content)
 	}
@@ -302,7 +301,6 @@ func (h *Hub) handleRead(reader *Client, in *chatModels.IncomingWS) {
 		return
 	}
 
-	// Notify the other party their messages were read
 	var ownerID, artisanID uuid.UUID
 	err = db.QueryRow(ctx,
 		`SELECT owner_id, artisan_id FROM conversations WHERE id = $1`, convoID,
@@ -370,13 +368,12 @@ func (h *Hub) sendTo(userID uuid.UUID, payload []byte) {
 	h.mu.RUnlock()
 
 	if !ok {
-		return // offline — message is persisted, fetched on reconnect via REST
+		return
 	}
 
 	select {
 	case c.send <- payload:
 	default:
-		// Slow / dead client — evict
 		h.mu.Lock()
 		delete(h.clients, userID)
 		h.mu.Unlock()

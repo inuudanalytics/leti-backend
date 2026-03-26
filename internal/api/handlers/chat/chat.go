@@ -708,6 +708,16 @@ func SendImageMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var chatExpiresAt *time.Time
+	_ = db.QueryRow(ctx,
+		`SELECT chat_expires_at FROM conversations WHERE id = $1`,
+		convoID,
+	).Scan(&chatExpiresAt)
+	if chatExpiresAt != nil && time.Now().After(*chatExpiresAt) {
+		utils.WriteError(w, "this conversation has been closed 24 hours after booking completion", http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		utils.WriteError(w, "failed to parse form data", http.StatusBadRequest)
 		return

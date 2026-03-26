@@ -39,6 +39,9 @@ func usersRouter() *http.ServeMux {
 	mux.HandleFunc("POST /auth/users/recovery-email/verify", auth.VerifyRecoveryEmailHandler)
 	mux.HandleFunc("DELETE /auth/users/recovery-email", auth.RemoveRecoveryEmailHandler)
 
+	mux.HandleFunc("POST /auth/users/verify/request-contact-otp", auth.RequestUnverifiedContactOTPHandler)
+	mux.HandleFunc("POST /auth/users/verify/confirm-contact-otp", auth.ConfirmUnverifiedContactOTPHandler)
+
 	// ── Check username availability ────────────────────────────
 	mux.HandleFunc("GET /auth/users/check-username", auth.CheckUsernameHandler)
 

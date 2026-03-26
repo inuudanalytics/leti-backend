@@ -2618,3 +2618,227 @@ func CheckUsernameHandler(w http.ResponseWriter, r *http.Request) {
 		"available": available,
 	})
 }
+
+// ============================================================================
+// POST /auth/users/verify/request-contact-otp
+// ============================================================================
+
+// RequestUnverifiedContactOTPHandler godoc
+// @Summary      Request OTP for unverified contact
+// @Description  Sends an OTP to the contact (email or phone) that was provided at signup but not yet verified.
+//
+//	Only works if the contact exists on the account and is still unverified.
+//
+// @Tags         Users
+// @Produce      json
+// @Success      200  {object}  object{status=string,message=string}
+// @Failure      400  {object}  object{error=string}
+// @Failure      401  {object}  object{error=string}
+// @Router       /auth/users/verify/request-contact-otp [post]
+// @Security     BearerAuth
+func RequestUnverifiedContactOTPHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	var firstName, lastName string
+	var emailNull, phoneNull sql.NullString
+	var emailVerified, phoneVerified bool
+
+	err := db.QueryRow(ctx,
+		`SELECT first_name, last_name, email, phone_number, email_verified, phone_verified
+		 FROM users WHERE id = $1 AND deleted_at IS NULL`,
+		userID,
+	).Scan(&firstName, &lastName, &emailNull, &phoneNull, &emailVerified, &phoneVerified)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.WriteError(w, "user not found", http.StatusNotFound)
+			return
+		}
+		utils.Logger.Errorf("database error: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	hasEmail := emailNull.Valid && emailNull.String != ""
+	hasPhone := phoneNull.Valid && phoneNull.String != ""
+
+	var sendToEmail, sendToPhone bool
+	switch {
+	case hasEmail && !emailVerified:
+		sendToEmail = true
+	case hasPhone && !phoneVerified:
+		sendToPhone = true
+	default:
+		if hasEmail && hasPhone {
+			utils.WriteError(w, "all contacts on your account are already verified", http.StatusBadRequest)
+		} else {
+			utils.WriteError(w, "no unverified contact found on your account", http.StatusBadRequest)
+		}
+		return
+	}
+
+	duration, err := strconv.Atoi(os.Getenv("OTP_TOKEN_EXP_DURATION"))
+	if err != nil {
+		utils.Logger.Error("failed to read OTP_TOKEN_EXP_DURATION")
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	expiryTime := time.Now().Add(time.Duration(duration) * time.Minute)
+	otp, err := utils.GenerateSecureOTP()
+	if err != nil {
+		utils.Logger.Errorf("failed to generate otp: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = db.Exec(ctx,
+		"UPDATE users SET otp = $1, otp_expires = $2 WHERE id = $3",
+		otp, expiryTime, userID,
+	)
+	if err != nil {
+		utils.Logger.Errorf("failed to update otp: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	displayName := firstName + " " + lastName
+	var otpDestination string
+
+	if sendToEmail {
+		otpDestination = "email"
+		go func(email, name, otp string, expiry time.Time) {
+			if err := utils.SendOTPEmail(email, name, otp, expiry); err != nil {
+				utils.Logger.Errorf("failed to send OTP email to %s: %v", email, err)
+			}
+		}(emailNull.String, displayName, otp, expiryTime)
+	} else if sendToPhone {
+		otpDestination = "phone number"
+		go func(phone, name, otp string, expiry time.Time) {
+			if err := utils.SendOTPSMS(phone, name, otp, expiry); err != nil {
+				utils.Logger.Errorf("failed to send OTP SMS to %s: %v", phone, err)
+			}
+		}(phoneNull.String, displayName, otp, expiryTime)
+	}
+
+	utils.WriteJSON(w, map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("OTP sent to your %s for verification", otpDestination),
+	})
+}
+
+// ============================================================================
+// POST /auth/users/verify/confirm-contact-otp
+// ============================================================================
+
+// ConfirmUnverifiedContactOTPHandler godoc
+// @Summary      Confirm OTP for unverified contact
+// @Description  Verifies the OTP sent to the previously unverified contact on the account.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{otp=string}  true  "OTP code"
+// @Success      200   {object}  object{status=string,message=string}
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Router       /auth/users/verify/confirm-contact-otp [post]
+// @Security     BearerAuth
+func ConfirmUnverifiedContactOTPHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	type request struct {
+		Otp string `json:"otp"`
+	}
+
+	var req request
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		utils.WriteError(w, "invalid or unexpected fields in body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Otp == "" {
+		utils.WriteError(w, "please enter otp", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	var emailNull, phoneNull sql.NullString
+	var emailVerified, phoneVerified bool
+
+	err := db.QueryRow(ctx,
+		`SELECT email, phone_number, email_verified, phone_verified
+		 FROM users
+		 WHERE id = $1 AND otp = $2 AND otp_expires > $3 AND deleted_at IS NULL`,
+		userID, req.Otp, time.Now().Format(time.RFC3339),
+	).Scan(&emailNull, &phoneNull, &emailVerified, &phoneVerified)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.WriteError(w, "invalid or expired otp", http.StatusBadRequest)
+			return
+		}
+		utils.Logger.Errorf("database error: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var updateQuery, verifiedContact string
+	switch {
+	case emailNull.Valid && emailNull.String != "" && !emailVerified:
+		updateQuery = "UPDATE users SET otp = NULL, otp_expires = NULL, email_verified = TRUE WHERE id = $1"
+		verifiedContact = "email"
+	case phoneNull.Valid && phoneNull.String != "" && !phoneVerified:
+		updateQuery = "UPDATE users SET otp = NULL, otp_expires = NULL, phone_verified = TRUE WHERE id = $1"
+		verifiedContact = "phone number"
+	default:
+		utils.WriteError(w, "no unverified contact found to confirm", http.StatusBadRequest)
+		return
+	}
+
+	if _, err = db.Exec(ctx, updateQuery, userID); err != nil {
+		utils.Logger.Errorf("failed to mark contact verified: %v", err)
+		utils.WriteError(w, "could not verify contact", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, map[string]interface{}{
+		"status":  "success",
+		"message": fmt.Sprintf("%s verified successfully", verifiedContact),
+	})
+}

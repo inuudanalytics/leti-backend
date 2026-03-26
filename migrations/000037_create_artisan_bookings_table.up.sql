@@ -1,13 +1,10 @@
--- ============================================================================
--- Artisan Bookings
--- ============================================================================
- 
 CREATE TYPE artisan_booking_status AS ENUM (
     'pending',      -- client requested, waiting for artisan
     'confirmed',    -- artisan accepted
     'declined',     -- artisan rejected
     'cancelled',    -- cancelled by either party
     'completed',    -- service delivered
+    'awaiting_client_confirmation',
     'disputed'
 );
  
@@ -33,6 +30,8 @@ CREATE TABLE artisan_bookings (
     confirmed_at        TIMESTAMPTZ,
     declined_at         TIMESTAMPTZ,
     cancelled_at        TIMESTAMPTZ,
+    client_completed_at TIMESTAMPTZ DEFAULT NULL,
+    artisan_completed_at TIMESTAMPTZ DEFAULT NULL,
     cancelled_by        UUID                    REFERENCES users(id),
     completed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ             NOT NULL DEFAULT NOW(),
