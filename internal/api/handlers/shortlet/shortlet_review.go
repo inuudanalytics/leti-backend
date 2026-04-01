@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"leti_server/internal/api/handlers"
+	shortletcache "leti_server/internal/api/handlers/shortlet/shortletcache"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -134,6 +135,9 @@ func CreatePropertyReview(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		bgCtx := context.Background()
+		// Bust review + property detail caches (avg_rating changes via DB trigger)
+		shortletcache.InvalidateProperty(bgCtx, propID.String())
+
 		var ownerID uuid.UUID
 		db.QueryRow(bgCtx, `SELECT owner_id FROM orders WHERE id = $1`, orderID).Scan(&ownerID)
 		if ownerID != uuid.Nil {
@@ -220,14 +224,14 @@ func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	var clientID, propOwnerID uuid.UUID
+	var clientID, propOwnerID, propID uuid.UUID
 	err = db.QueryRow(ctx, `
-		SELECT pr.client_id, p.owner_id
+		SELECT pr.client_id, p.owner_id, p.id
 		FROM property_reviews pr
 		JOIN orders o ON o.id = pr.order_id
 		JOIN properties p ON p.id = pr.property_id
 		WHERE pr.id = $1
-	`, reviewID).Scan(&clientID, &propOwnerID)
+	`, reviewID).Scan(&clientID, &propOwnerID, &propID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "review not found", http.StatusNotFound)
@@ -268,6 +272,8 @@ func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 
 	db.QueryRow(ctx, `SELECT first_name || ' ' || last_name FROM users WHERE id = $1`, userID).Scan(&authorName)
 	reply.AuthorName = authorName
+
+	go shortletcache.InvalidateProperty(context.Background(), propID.String())
 
 	w.WriteHeader(http.StatusCreated)
 	utils.WriteJSON(w, map[string]interface{}{
@@ -315,6 +321,13 @@ func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 		limit = 20
 	}
 	offset := (page - 1) * limit
+
+	cacheKey := shortletcache.KeyReviews(propID.String(), page, limit)
+	var cachedResult map[string]interface{}
+	if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cachedResult); hit {
+		utils.WriteJSON(w, cachedResult)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -375,6 +388,7 @@ func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 		); err != nil {
 			continue
 		}
+		_ = reviewerName
 
 		if _, exists := reviewMap[rv.ID]; !exists {
 			rv.Replies = []shortlet.PropertyReviewReply{}
@@ -401,7 +415,7 @@ func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalPages := (total + limit - 1) / limit
-	utils.WriteJSON(w, map[string]interface{}{
+	result := map[string]interface{}{
 		"status":       "success",
 		"avg_rating":   avgRating,
 		"review_count": reviewCount,
@@ -414,5 +428,9 @@ func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 		"pagination": map[string]int{
 			"total": total, "page": page, "limit": limit, "total_pages": totalPages,
 		},
-	})
+	}
+
+	go shortletcache.SetCached(context.Background(), cacheKey, result, shortletcache.TTLReviews)
+
+	utils.WriteJSON(w, result)
 }

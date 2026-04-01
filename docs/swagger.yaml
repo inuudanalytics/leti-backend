@@ -247,6 +247,8 @@ definitions:
         type: string
       avatar:
         $ref: '#/definitions/authModels.UserAvatar'
+      bio:
+        type: string
       deleted_at:
         type: string
       email:
@@ -3932,6 +3934,65 @@ paths:
       summary: Get current user
       tags:
       - Users
+    patch:
+      consumes:
+      - application/json
+      description: 'Updates the authenticated user''s editable profile fields: bio.'
+      parameters:
+      - description: Fields to update — all optional, send only what you want to change
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            bio:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  bio:
+                    type: string
+                  id:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - Users
   /auth/users/recovery-email:
     delete:
       description: Removes the recovery email from the authenticated user's account.
@@ -5969,6 +6030,39 @@ paths:
       summary: Get owner's own listings
       tags:
       - Properties
+  /owners/me/properties/drafts:
+    get:
+      description: Returns all properties with status='draft' for the authenticated
+        owner, including the partial draft_data payload so the client can pre-fill
+        the form.
+      parameters:
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyListResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get owner's draft listings
+      tags:
+      - Properties
   /profile/artisan/address:
     get:
       description: Returns all addresses for the authenticated artisan.
@@ -7986,6 +8080,55 @@ paths:
       summary: Get property calendar
       tags:
       - Properties / Availability
+  /properties/{id}/publish:
+    patch:
+      description: Validates that the draft has all required fields and sets status
+        to 'active', making it publicly searchable. Returns a 400 with a list of missing
+        fields if validation fails so the client can prompt the owner to complete
+        them.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+              missing_fields:
+                items:
+                  type: string
+                type: array
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish a draft property listing
+      tags:
+      - Properties
   /properties/{id}/reviews:
     get:
       description: Returns a paginated list of reviews for a property, including any
@@ -8065,6 +8208,94 @@ paths:
       summary: Save or unsave a property
       tags:
       - Saved Listings
+  /properties/draft:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Creates a draft listing that the owner can fill in incrementally
+        and publish later. All fields are optional — save whatever the owner has typed
+        so far. The listing will have status='draft' and will not appear in public
+        searches until published.
+      parameters:
+      - description: Property name
+        in: formData
+        name: name
+        type: string
+      - description: Property description
+        in: formData
+        name: description
+        type: string
+      - description: Property type
+        in: formData
+        name: property_type
+        type: string
+      - description: Nightly rate in NGN
+        in: formData
+        name: price_per_night
+        type: number
+      - description: Refundable caution fee
+        in: formData
+        name: caution_fee
+        type: number
+      - description: JSON array e.g. [\
+        in: formData
+        name: amenities
+        type: string
+      - description: JSON array e.g. [\
+        in: formData
+        name: house_rules
+        type: string
+      - description: Max adult guests
+        in: formData
+        name: max_adults
+        type: integer
+      - description: Max children
+        in: formData
+        name: max_children
+        type: integer
+      - description: Nigerian state
+        in: formData
+        name: state
+        type: string
+      - description: City
+        in: formData
+        name: city
+        type: string
+      - description: Street address
+        in: formData
+        name: street
+        type: string
+      - description: Latitude
+        in: formData
+        name: latitude
+        type: number
+      - description: Longitude
+        in: formData
+        name: longitude
+        type: number
+      - description: Images (max 5)
+        in: formData
+        name: images
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/shortlet.PropertyResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a draft property listing
+      tags:
+      - Properties
   /reviews/{id}/reply:
     post:
       consumes:

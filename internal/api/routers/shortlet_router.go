@@ -16,6 +16,11 @@ func shortletRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /shortlet/properties/{id}", shortlet.DeleteProperty)
 	mux.HandleFunc("GET /shortlet/owners/me/properties", shortlet.GetMyProperties)
 
+	// ── Draft listings ───────────────────────────────────────────────────────
+	mux.HandleFunc("POST /shortlet/properties/draft", shortlet.CreatePropertyDraft)
+	mux.HandleFunc("GET /shortlet/owners/me/properties/drafts", shortlet.GetMyDraftProperties)
+	mux.HandleFunc("PATCH /shortlet/properties/{id}/publish", shortlet.PublishProperty)
+
 	// ── Availability & Calendar ──────────────────────────────────────────────
 	mux.HandleFunc("POST /shortlet/properties/{id}/availability", shortlet.SetPropertyAvailability)
 	mux.HandleFunc("DELETE /shortlet/properties/{id}/availability/{avail_id}", shortlet.DeletePropertyAvailability)
@@ -41,6 +46,7 @@ func shortletRouter() *http.ServeMux {
 	mux.HandleFunc("POST /shortlet/orders/{id}/reviews", shortlet.CreatePropertyReview)
 	mux.HandleFunc("POST /shortlet/reviews/{id}/reply", shortlet.ReplyToPropertyReview)
 	//  (public)
-	mux.HandleFunc("GET/shortlet/properties/{id}/reviews", shortlet.GetPropertyReviews)
+	mux.HandleFunc("GET /shortlet/properties/{id}/reviews", shortlet.GetPropertyReviews)
+
 	return mux
 }

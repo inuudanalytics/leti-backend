@@ -7,4 +7,5 @@ DROP INDEX IF EXISTS idx_properties_rating;
 DROP INDEX IF EXISTS idx_properties_location;
 DROP INDEX IF EXISTS idx_properties_deleted_at;
 DROP INDEX IF EXISTS idx_properties_amenities; 
+DROP INDEX IF EXISTS idx_properties_draft; 
 DROP TABLE IF EXISTS properties;

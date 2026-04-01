@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-type rateLimiter struct {
+type RateLimiter struct {
 	mu        sync.Mutex
 	visitors  map[string]int
 	limit     int
 	resetTime time.Duration
 }
 
-func NewRateLimiter(limit int, resetTime time.Duration) *rateLimiter {
-	rl := &rateLimiter{
+func NewRateLimiter(limit int, resetTime time.Duration) *RateLimiter {
+	rl := &RateLimiter{
 		visitors:  make(map[string]int),
 		limit:     limit,
 		resetTime: resetTime,
@@ -28,7 +28,7 @@ func NewRateLimiter(limit int, resetTime time.Duration) *rateLimiter {
 	return rl
 }
 
-func (rl *rateLimiter) resetVisitorCount() {
+func (rl *RateLimiter) resetVisitorCount() {
 	ticker := time.NewTicker(rl.resetTime)
 	defer ticker.Stop()
 
@@ -58,7 +58,7 @@ func getClientIP(r *http.Request) string {
 	return ip
 }
 
-func (rl *rateLimiter) Middleware(next http.Handler) http.Handler {
+func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := getClientIP(r)
 

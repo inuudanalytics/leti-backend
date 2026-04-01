@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"leti_server/internal/api/handlers"
+	cachehook "leti_server/internal/api/handlers/hooks"
 	"leti_server/internal/api/services"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
@@ -318,6 +319,8 @@ func CreateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go cachehook.InvalidateOnNewOrder(order.PropertyID.String())
+
 	switch req.PaymentMethod {
 	case "wallet":
 		processOrderWalletPayment(w, r.WithContext(ctx), db, clientID, order, summary)
@@ -532,7 +535,7 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(ctx)
 
-	var clientID, ownerID uuid.UUID
+	var clientID, ownerID, cancelledPropertyID uuid.UUID
 	var paymentStatus string
 
 	err = tx.QueryRow(ctx, `
@@ -541,8 +544,8 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $1
 		  AND (client_id = $2 OR owner_id = $2)
 		  AND status IN ('pending', 'confirmed')
-		RETURNING client_id, owner_id, payment_status
-	`, orderID, userID).Scan(&clientID, &ownerID, &paymentStatus)
+		RETURNING client_id, owner_id, payment_status, property_id
+	`, orderID, userID).Scan(&clientID, &ownerID, &paymentStatus, &cancelledPropertyID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "order not found or cannot be cancelled in its current state", http.StatusNotFound)
@@ -566,6 +569,8 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	go cachehook.InvalidateOnNewOrder(cancelledPropertyID.String())
 
 	go func() {
 		bgCtx := context.Background()
@@ -628,14 +633,14 @@ func CheckInOrder(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	var clientID uuid.UUID
+	var clientID, checkInPropertyID uuid.UUID
 	var checkInDateStr string
 	err = db.QueryRow(ctx, `
 		UPDATE orders SET status = 'checked_in', checked_in_at = NOW(), updated_at = NOW()
 		WHERE id = $1 AND owner_id = $2 AND status = 'confirmed'
-		  AND check_in_date <= CURRENT_DATE
-		RETURNING client_id, check_in_date::TEXT
-	`, orderID, userID).Scan(&clientID, &checkInDateStr)
+		AND check_in_date <= CURRENT_DATE
+		RETURNING client_id, check_in_date::TEXT, property_id
+	`, orderID, userID).Scan(&clientID, &checkInDateStr, &checkInPropertyID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "order not found, not confirmed, or check-in date has not arrived yet", http.StatusBadRequest)
@@ -644,6 +649,8 @@ func CheckInOrder(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	go cachehook.InvalidateOnNewOrder(checkInPropertyID.String())
 
 	go utils.CreateNotification(context.Background(), clientID,
 		utils.NotifBookingCheckedIn,
@@ -702,13 +709,13 @@ func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(ctx)
 
-	var clientID uuid.UUID
+	var clientID, checkOutPropertyID uuid.UUID
 	err = tx.QueryRow(ctx, `
 		UPDATE orders SET status = 'completed', checked_out_at = NOW(),
-		    completed_at = NOW(), updated_at = NOW()
+			completed_at = NOW(), updated_at = NOW()
 		WHERE id = $1 AND owner_id = $2 AND status = 'checked_in'
-		RETURNING client_id
-	`, orderID, userID).Scan(&clientID)
+		RETURNING client_id, property_id
+	`, orderID, userID).Scan(&clientID, &checkOutPropertyID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "order not found or not in checked_in status", http.StatusBadRequest)
@@ -729,6 +736,8 @@ func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+
+	go cachehook.InvalidateOnNewOrder(checkOutPropertyID.String())
 
 	go func() {
 		bgCtx := context.Background()

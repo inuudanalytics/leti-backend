@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"leti_server/internal/api/handlers"
+	shortletcache "leti_server/internal/api/handlers/shortlet/shortletcache"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -36,6 +37,662 @@ type PropertyDetailResponse struct {
 	Data    shortlet.Property      `json:"data"`
 	IsSaved bool                   `json:"is_saved"`
 	Owner   map[string]interface{} `json:"owner"`
+}
+
+// ============================================================================
+// POST /properties/draft  — create an empty / partial draft listing
+// ============================================================================
+
+// CreatePropertyDraft godoc
+// @Summary      Create a draft property listing
+// @Description  Creates a draft listing that the owner can fill in incrementally and publish later. All fields are optional — save whatever the owner has typed so far. The listing will have status='draft' and will not appear in public searches until published.
+// @Tags         Properties
+// @Accept       mpfd
+// @Produce      json
+// @Param        name            formData  string  false  "Property name"
+// @Param        description     formData  string  false  "Property description"
+// @Param        property_type   formData  string  false  "Property type"
+// @Param        price_per_night formData  number  false  "Nightly rate in NGN"
+// @Param        caution_fee     formData  number  false  "Refundable caution fee"
+// @Param        amenities       formData  string  false  "JSON array e.g. [\"WiFi\",\"AC\"]"
+// @Param        house_rules     formData  string  false  "JSON array e.g. [\"No smoking\"]"
+// @Param        max_adults      formData  integer false  "Max adult guests"
+// @Param        max_children    formData  integer false  "Max children"
+// @Param        state           formData  string  false  "Nigerian state"
+// @Param        city            formData  string  false  "City"
+// @Param        street          formData  string  false  "Street address"
+// @Param        latitude        formData  number  false  "Latitude"
+// @Param        longitude       formData  number  false  "Longitude"
+// @Param        images          formData  file    false  "Images (max 5)"
+// @Success 201 {object} PropertyResponse
+// @Failure      403  {object}  object{error=string}
+// @Router       /properties/draft [post]
+// @Security     BearerAuth
+func CreatePropertyDraft(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	role, _ := r.Context().Value(utils.ContextKey("role")).(string)
+	if role != "owner" {
+		utils.WriteError(w, "only property owners can create listings", http.StatusForbidden)
+		return
+	}
+
+	if err := r.ParseMultipartForm(50 << 20); err != nil {
+		r.ParseForm()
+	}
+
+	draft := map[string]interface{}{}
+
+	if v := strings.TrimSpace(r.FormValue("name")); v != "" {
+		draft["name"] = v
+	}
+	if v := r.FormValue("description"); v != "" {
+		draft["description"] = v
+	}
+	if v := r.FormValue("property_type"); v != "" {
+		draft["property_type"] = v
+	}
+	if v := r.FormValue("price_per_night"); v != "" {
+		var price float64
+		fmt.Sscanf(v, "%f", &price)
+		draft["price_per_night"] = price
+	}
+	if v := r.FormValue("caution_fee"); v != "" {
+		var fee float64
+		fmt.Sscanf(v, "%f", &fee)
+		draft["caution_fee"] = fee
+	}
+	if v := r.FormValue("amenities"); v != "" {
+		var arr []string
+		if json.Unmarshal([]byte(v), &arr) == nil {
+			draft["amenities"] = arr
+		}
+	}
+	if v := r.FormValue("house_rules"); v != "" {
+		var arr []string
+		if json.Unmarshal([]byte(v), &arr) == nil {
+			draft["house_rules"] = arr
+		}
+	}
+	if v := r.FormValue("max_adults"); v != "" {
+		var n int
+		fmt.Sscanf(v, "%d", &n)
+		draft["max_adults"] = n
+	}
+	if v := r.FormValue("max_children"); v != "" {
+		var n int
+		fmt.Sscanf(v, "%d", &n)
+		draft["max_children"] = n
+	}
+	if v := r.FormValue("state"); v != "" {
+		draft["state"] = v
+	}
+	if v := r.FormValue("city"); v != "" {
+		draft["city"] = v
+	}
+	if v := r.FormValue("street"); v != "" {
+		draft["street"] = v
+	}
+	if latStr, lngStr := r.FormValue("latitude"), r.FormValue("longitude"); latStr != "" && lngStr != "" {
+		var lat, lng float64
+		fmt.Sscanf(latStr, "%f", &lat)
+		fmt.Sscanf(lngStr, "%f", &lng)
+		draft["latitude"] = lat
+		draft["longitude"] = lng
+	}
+
+	var uploadedImages []shortlet.PropertyImage
+	if r.MultipartForm != nil && len(r.MultipartForm.File["images"]) > 0 {
+		imageHeaders := r.MultipartForm.File["images"]
+		if len(imageHeaders) > 5 {
+			utils.WriteError(w, "maximum 5 images allowed", http.StatusBadRequest)
+			return
+		}
+		ctx60, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		defer cancel()
+		cloud, err := utils.InitCloudinary()
+		if err != nil {
+			utils.WriteError(w, "failed to initialize image service", http.StatusInternalServerError)
+			return
+		}
+		var files []utils.UploadFile
+		var openFiles []io.Closer
+		for _, h := range imageHeaders {
+			f, err := h.Open()
+			if err != nil {
+				continue
+			}
+			files = append(files, utils.UploadFile{Reader: f, Filename: h.Filename})
+			openFiles = append(openFiles, f)
+		}
+		defer func() {
+			for _, f := range openFiles {
+				f.Close()
+			}
+		}()
+		urls, publicIDs, err := handlers.UploadFilesConcurrently(ctx60, cloud, files, "properties")
+		if err != nil {
+			utils.WriteError(w, "failed to upload images", http.StatusInternalServerError)
+			return
+		}
+		now := time.Now()
+		for i, url := range urls {
+			uploadedImages = append(uploadedImages, shortlet.PropertyImage{
+				URL: url, PublicID: publicIDs[i], UpdatedAt: now,
+			})
+		}
+		draft["images"] = uploadedImages
+	}
+
+	draftJSON, _ := json.Marshal(draft)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	var prop shortlet.Property
+	var imagesRaw, amenitiesRaw, rulesRaw []byte
+
+	err := db.QueryRow(ctx, `
+		INSERT INTO properties (
+			owner_id, name, description, property_type,
+			price_per_night, caution_fee,
+			images, amenities, house_rules,
+			max_adults, max_children,
+			state, city, street,
+			status, draft_data
+		) VALUES (
+			$1,
+			COALESCE(NULLIF($2, ''), 'Untitled Draft'),
+			$3, 'apartment',
+			0, 0,
+			'[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+			1, 0,
+			COALESCE(NULLIF($4, ''), '—'),
+			COALESCE(NULLIF($5, ''), '—'),
+			COALESCE(NULLIF($6, ''), '—'),
+			'draft', $7
+		)
+		RETURNING id, owner_id, name, description, property_type, status,
+		          price_per_night, caution_fee,
+		          images, amenities, house_rules,
+		          max_adults, max_children,
+		          state, city, street,
+		          ST_Y(location::geometry) AS latitude,
+		          ST_X(location::geometry) AS longitude,
+		          avg_rating, review_count, created_at, updated_at
+	`,
+		userID,
+		draft["name"],
+		draft["description"],
+		draft["state"],
+		draft["city"],
+		draft["street"],
+		draftJSON,
+	).Scan(
+		&prop.ID, &prop.OwnerID, &prop.Name, &prop.Description,
+		&prop.PropertyType, &prop.Status,
+		&prop.PricePerNight, &prop.CautionFee,
+		&imagesRaw, &amenitiesRaw, &rulesRaw,
+		&prop.MaxAdults, &prop.MaxChildren,
+		&prop.State, &prop.City, &prop.Street,
+		&prop.Latitude, &prop.Longitude,
+		&prop.AvgRating, &prop.ReviewCount,
+		&prop.CreatedAt, &prop.UpdatedAt,
+	)
+	if err != nil {
+		utils.Logger.Errorf("failed to create draft property: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	json.Unmarshal(imagesRaw, &prop.Images)
+	json.Unmarshal(amenitiesRaw, &prop.Amenities)
+	json.Unmarshal(rulesRaw, &prop.HouseRules)
+
+	if v, ok := draft["name"].(string); ok && v != "" {
+		prop.Name = v
+	}
+	if v, ok := draft["description"].(string); ok {
+		prop.Description = &v
+	}
+	if v, ok := draft["property_type"].(string); ok && v != "" {
+		prop.PropertyType = v
+	}
+	if v, ok := draft["price_per_night"].(float64); ok {
+		prop.PricePerNight = v
+	}
+	if v, ok := draft["caution_fee"].(float64); ok {
+		prop.CautionFee = v
+	}
+	if v, ok := draft["max_adults"].(int); ok {
+		prop.MaxAdults = v
+	}
+	if v, ok := draft["max_children"].(int); ok {
+		prop.MaxChildren = v
+	}
+	if v, ok := draft["state"].(string); ok && v != "" {
+		prop.State = v
+	}
+	if v, ok := draft["city"].(string); ok && v != "" {
+		prop.City = v
+	}
+	if v, ok := draft["street"].(string); ok && v != "" {
+		prop.Street = v
+	}
+	if v, ok := draft["amenities"].([]string); ok {
+		prop.Amenities = v
+	}
+	if v, ok := draft["house_rules"].([]string); ok {
+		prop.HouseRules = v
+	}
+	if v, ok := draft["images"].([]shortlet.PropertyImage); ok {
+		prop.Images = v
+	}
+
+	go shortletcache.InvalidateMyProperties(context.Background(), userID.String())
+
+	w.WriteHeader(http.StatusCreated)
+	utils.WriteJSON(w, map[string]interface{}{
+		"status":   "success",
+		"message":  "draft saved — continue editing and publish when ready",
+		"property": prop,
+		"draft":    draft,
+	})
+}
+
+// ============================================================================
+// PATCH /properties/{id}/publish  — validate draft and flip to 'active'
+// ============================================================================
+
+// PublishProperty godoc
+// @Summary      Publish a draft property listing
+// @Description  Validates that the draft has all required fields and sets status to 'active', making it publicly searchable. Returns a 400 with a list of missing fields if validation fails so the client can prompt the owner to complete them.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Property UUID"
+// @Success      200  {object}  PropertyResponse
+// @Failure      400  {object}  object{error=string,missing_fields=[]string}
+// @Failure      403  {object}  object{error=string}
+// @Failure      404  {object}  object{error=string}
+// @Router       /properties/{id}/publish [patch]
+// @Security     BearerAuth
+func PublishProperty(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	role, _ := r.Context().Value(utils.ContextKey("role")).(string)
+	if role != "owner" {
+		utils.WriteError(w, "only property owners can publish listings", http.StatusForbidden)
+		return
+	}
+
+	propID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		utils.WriteError(w, "invalid property id", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	var prop shortlet.Property
+	var imagesRaw, amenitiesRaw, rulesRaw []byte
+	var currentStatus string
+
+	err = db.QueryRow(ctx, `
+		SELECT id, owner_id, name, description, property_type, status,
+		       price_per_night, caution_fee,
+		       images, amenities, house_rules,
+		       max_adults, max_children,
+		       state, city, street,
+		       ST_Y(location::geometry) AS latitude,
+		       ST_X(location::geometry) AS longitude,
+		       avg_rating, review_count, created_at, updated_at
+		FROM properties
+		WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
+	`, propID, userID).Scan(
+		&prop.ID, &prop.OwnerID, &prop.Name, &prop.Description,
+		&prop.PropertyType, &currentStatus,
+		&prop.PricePerNight, &prop.CautionFee,
+		&imagesRaw, &amenitiesRaw, &rulesRaw,
+		&prop.MaxAdults, &prop.MaxChildren,
+		&prop.State, &prop.City, &prop.Street,
+		&prop.Latitude, &prop.Longitude,
+		&prop.AvgRating, &prop.ReviewCount,
+		&prop.CreatedAt, &prop.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			utils.WriteError(w, "property not found or you do not own it", http.StatusNotFound)
+			return
+		}
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	json.Unmarshal(imagesRaw, &prop.Images)
+	json.Unmarshal(amenitiesRaw, &prop.Amenities)
+	json.Unmarshal(rulesRaw, &prop.HouseRules)
+
+	if currentStatus == "draft" {
+		var draftRaw []byte
+		db.QueryRow(ctx, `SELECT draft_data FROM properties WHERE id = $1`, propID).Scan(&draftRaw)
+
+		if len(draftRaw) > 0 {
+			var draft map[string]interface{}
+			if json.Unmarshal(draftRaw, &draft) == nil {
+				if v, ok := draft["name"].(string); ok && v != "" {
+					prop.Name = v
+				}
+				if v, ok := draft["description"].(string); ok {
+					prop.Description = &v
+				}
+				if v, ok := draft["property_type"].(string); ok && v != "" {
+					prop.PropertyType = v
+				}
+				if v, ok := draft["price_per_night"].(float64); ok {
+					prop.PricePerNight = v
+				}
+				if v, ok := draft["caution_fee"].(float64); ok {
+					prop.CautionFee = v
+				}
+				if v, ok := draft["max_adults"].(float64); ok {
+					prop.MaxAdults = int(v)
+				}
+				if v, ok := draft["max_children"].(float64); ok {
+					prop.MaxChildren = int(v)
+				}
+				if v, ok := draft["state"].(string); ok && v != "" {
+					prop.State = v
+				}
+				if v, ok := draft["city"].(string); ok && v != "" {
+					prop.City = v
+				}
+				if v, ok := draft["street"].(string); ok && v != "" {
+					prop.Street = v
+				}
+				if v, ok := draft["amenities"].([]interface{}); ok {
+					amenities := make([]string, 0, len(v))
+					for _, a := range v {
+						if s, ok := a.(string); ok {
+							amenities = append(amenities, s)
+						}
+					}
+					prop.Amenities = amenities
+				}
+				if v, ok := draft["house_rules"].([]interface{}); ok {
+					rules := make([]string, 0, len(v))
+					for _, r := range v {
+						if s, ok := r.(string); ok {
+							rules = append(rules, s)
+						}
+					}
+					prop.HouseRules = rules
+				}
+				if v, ok := draft["images"].([]interface{}); ok && len(v) > 0 {
+					imagesJSON, _ := json.Marshal(v)
+					var images []shortlet.PropertyImage
+					if json.Unmarshal(imagesJSON, &images) == nil {
+						prop.Images = images
+					}
+				}
+			}
+		}
+	}
+
+	validTypes := map[string]bool{
+		"apartment": true, "studio": true, "1_bedroom": true, "2_bedroom": true,
+		"3_bedroom": true, "4_bedroom": true, "5_bedroom_plus": true,
+		"duplex": true, "penthouse": true, "villa": true, "bungalow": true,
+	}
+
+	var missing []string
+	if strings.TrimSpace(prop.Name) == "" || prop.Name == "Untitled Draft" {
+		missing = append(missing, "name")
+	}
+	if !validTypes[prop.PropertyType] {
+		missing = append(missing, "property_type")
+	}
+	if prop.PricePerNight <= 0 {
+		missing = append(missing, "price_per_night")
+	}
+	if prop.MaxAdults < 1 {
+		missing = append(missing, "max_adults")
+	}
+	if strings.TrimSpace(prop.State) == "" || prop.State == "—" {
+		missing = append(missing, "state")
+	}
+	if strings.TrimSpace(prop.City) == "" || prop.City == "—" {
+		missing = append(missing, "city")
+	}
+	if strings.TrimSpace(prop.Street) == "" || prop.Street == "—" {
+		missing = append(missing, "street")
+	}
+	if len(prop.Images) == 0 {
+		missing = append(missing, "images (at least 1 required)")
+	}
+
+	if len(missing) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":          "listing is incomplete — please fill in the missing fields before publishing",
+			"missing_fields": missing,
+		})
+		return
+	}
+
+	imagesPublishJSON, _ := json.Marshal(prop.Images)
+	amenitiesPublishJSON, _ := json.Marshal(prop.Amenities)
+	rulesPublishJSON, _ := json.Marshal(prop.HouseRules)
+
+	err = db.QueryRow(ctx, `
+		UPDATE properties
+		SET status          = 'active',
+			draft_data      = NULL,
+			name            = $3,
+			description     = $4,
+			property_type   = $5::property_type,
+			price_per_night = $6,
+			caution_fee     = $7,
+			images          = $8::jsonb,
+			amenities       = $9::jsonb,
+			house_rules     = $10::jsonb,
+			max_adults      = $11,
+			max_children    = $12,
+			state           = $13,
+			city            = $14,
+			street          = $15,
+			updated_at      = NOW()
+		WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
+		RETURNING id, owner_id, name, description, property_type, status,
+				price_per_night, caution_fee,
+				images, amenities, house_rules,
+				max_adults, max_children,
+				state, city, street,
+				ST_Y(location::geometry) AS latitude,
+				ST_X(location::geometry) AS longitude,
+				avg_rating, review_count, created_at, updated_at
+	`,
+		propID, userID,
+		prop.Name, prop.Description, prop.PropertyType,
+		prop.PricePerNight, prop.CautionFee,
+		imagesPublishJSON, amenitiesPublishJSON, rulesPublishJSON,
+		prop.MaxAdults, prop.MaxChildren,
+		prop.State, prop.City, prop.Street,
+	).Scan(
+		&prop.ID, &prop.OwnerID, &prop.Name, &prop.Description,
+		&prop.PropertyType, &prop.Status,
+		&prop.PricePerNight, &prop.CautionFee,
+		&imagesRaw, &amenitiesRaw, &rulesRaw,
+		&prop.MaxAdults, &prop.MaxChildren,
+		&prop.State, &prop.City, &prop.Street,
+		&prop.Latitude, &prop.Longitude,
+		&prop.AvgRating, &prop.ReviewCount,
+		&prop.CreatedAt, &prop.UpdatedAt,
+	)
+	if err != nil {
+		utils.Logger.Errorf("failed to publish property %s: %v", propID, err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	json.Unmarshal(imagesRaw, &prop.Images)
+	json.Unmarshal(amenitiesRaw, &prop.Amenities)
+	json.Unmarshal(rulesRaw, &prop.HouseRules)
+
+	go func() {
+		bgCtx := context.Background()
+		shortletcache.InvalidateProperty(bgCtx, propID.String())
+		shortletcache.InvalidateMyProperties(bgCtx, userID.String())
+	}()
+
+	utils.WriteJSON(w, map[string]interface{}{
+		"status":   "success",
+		"message":  "property published successfully",
+		"property": prop,
+	})
+}
+
+// ============================================================================
+// GET /owners/me/properties/drafts
+// ============================================================================
+
+// GetMyDraftProperties godoc
+// @Summary      Get owner's draft listings
+// @Description  Returns all properties with status='draft' for the authenticated owner, including the partial draft_data payload so the client can pre-fill the form.
+// @Tags         Properties
+// @Produce      json
+// @Param        page   query  integer false  "Page (default 1)"
+// @Param        limit  query  integer false  "Items per page (default 20)"
+// @Success 200 {object} PropertyListResponse
+// @Failure      403  {object}  object{error=string}
+// @Router       /owners/me/properties/drafts [get]
+// @Security     BearerAuth
+func GetMyDraftProperties(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	role, _ := r.Context().Value(utils.ContextKey("role")).(string)
+	if role != "owner" {
+		utils.WriteError(w, "only owners can access this endpoint", http.StatusForbidden)
+		return
+	}
+
+	page, limit := utils.GetPaginationParams(r)
+	offset := (page - 1) * limit
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	var total int
+	db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM properties
+		WHERE owner_id = $1 AND status = 'draft' AND deleted_at IS NULL
+	`, userID).Scan(&total)
+
+	rows, err := db.Query(ctx, `
+		SELECT id, owner_id, name, description, property_type, status,
+		       price_per_night, caution_fee,
+		       images, amenities, house_rules,
+		       max_adults, max_children,
+		       state, city, street,
+		       ST_Y(location::geometry), ST_X(location::geometry),
+		       avg_rating, review_count,
+		       draft_data,
+		       created_at, updated_at
+		FROM properties
+		WHERE owner_id = $1 AND status = 'draft' AND deleted_at IS NULL
+		ORDER BY updated_at DESC
+		LIMIT $2 OFFSET $3
+	`, userID, limit, offset)
+	if err != nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type DraftProperty struct {
+		shortlet.Property
+		DraftData json.RawMessage `json:"draft_data,omitempty"`
+	}
+
+	properties := make([]DraftProperty, 0)
+	for rows.Next() {
+		var p DraftProperty
+		var ir, ar, rr []byte
+		var draftRaw []byte
+		rows.Scan(
+			&p.ID, &p.OwnerID, &p.Name, &p.Description,
+			&p.PropertyType, &p.Status,
+			&p.PricePerNight, &p.CautionFee,
+			&ir, &ar, &rr,
+			&p.MaxAdults, &p.MaxChildren,
+			&p.State, &p.City, &p.Street,
+			&p.Latitude, &p.Longitude,
+			&p.AvgRating, &p.ReviewCount,
+			&draftRaw,
+			&p.CreatedAt, &p.UpdatedAt,
+		)
+		json.Unmarshal(ir, &p.Images)
+		json.Unmarshal(ar, &p.Amenities)
+		json.Unmarshal(rr, &p.HouseRules)
+		if len(draftRaw) > 0 {
+			p.DraftData = json.RawMessage(draftRaw)
+		}
+		properties = append(properties, p)
+	}
+
+	totalPages := (total + limit - 1) / limit
+	utils.WriteJSON(w, map[string]interface{}{
+		"status": "success",
+		"count":  len(properties),
+		"data":   properties,
+		"pagination": map[string]int{
+			"total": total, "page": page,
+			"limit": limit, "total_pages": totalPages,
+		},
+	})
 }
 
 // ============================================================================
@@ -181,23 +838,19 @@ func CreateProperty(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var uploadedImages []shortlet.PropertyImage
-
 	if r.MultipartForm != nil && len(r.MultipartForm.File["images"]) > 0 {
 		imageHeaders := r.MultipartForm.File["images"]
 		if len(imageHeaders) > 5 {
 			utils.WriteError(w, "maximum 5 images allowed", http.StatusBadRequest)
 			return
 		}
-
 		ctx60, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel()
-
 		cloud, err := utils.InitCloudinary()
 		if err != nil {
 			utils.WriteError(w, "failed to initialize image service", http.StatusInternalServerError)
 			return
 		}
-
 		var files []utils.UploadFile
 		var openFiles []io.Closer
 		for _, h := range imageHeaders {
@@ -213,19 +866,15 @@ func CreateProperty(w http.ResponseWriter, r *http.Request) {
 				f.Close()
 			}
 		}()
-
 		urls, publicIDs, err := handlers.UploadFilesConcurrently(ctx60, cloud, files, "properties")
 		if err != nil {
 			utils.WriteError(w, "failed to upload images", http.StatusInternalServerError)
 			return
 		}
-
 		now := time.Now()
 		for i, url := range urls {
 			uploadedImages = append(uploadedImages, shortlet.PropertyImage{
-				URL:       url,
-				PublicID:  publicIDs[i],
-				UpdatedAt: now,
+				URL: url, PublicID: publicIDs[i], UpdatedAt: now,
 			})
 		}
 	}
@@ -308,6 +957,12 @@ func CreateProperty(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(amenitiesRaw, &prop.Amenities)
 	json.Unmarshal(rulesRaw, &prop.HouseRules)
 
+	go func() {
+		bgCtx := context.Background()
+		shortletcache.InvalidateListings(bgCtx)
+		shortletcache.InvalidateMyProperties(bgCtx, userID.String())
+	}()
+
 	w.WriteHeader(http.StatusCreated)
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":   "success",
@@ -388,10 +1043,11 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 
 	var existingOwnerID uuid.UUID
 	var existingImagesRaw []byte
+	var currentStatus string
 	err = db.QueryRow(ctx,
-		`SELECT owner_id, images FROM properties WHERE id = $1 AND deleted_at IS NULL`,
+		`SELECT owner_id, images, status FROM properties WHERE id = $1 AND deleted_at IS NULL`,
 		propID,
-	).Scan(&existingOwnerID, &existingImagesRaw)
+	).Scan(&existingOwnerID, &existingImagesRaw, &currentStatus)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "property not found", http.StatusNotFound)
@@ -415,11 +1071,20 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 		argIdx++
 	}
 
+	isDraft := currentStatus == "draft"
+	draftPatch := map[string]interface{}{}
+
 	if v := strings.TrimSpace(r.FormValue("name")); v != "" {
 		addSet("name", v)
+		if isDraft {
+			draftPatch["name"] = v
+		}
 	}
 	if v := r.FormValue("description"); v != "" {
 		addSet("description", v)
+		if isDraft {
+			draftPatch["description"] = v
+		}
 	}
 	if v := r.FormValue("property_type"); v != "" {
 		validTypes := map[string]bool{
@@ -432,6 +1097,9 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		addSet("property_type", v)
+		if isDraft {
+			draftPatch["property_type"] = v
+		}
 	}
 	if v := r.FormValue("price_per_night"); v != "" {
 		var price float64
@@ -440,11 +1108,17 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		addSet("price_per_night", price)
+		if isDraft {
+			draftPatch["price_per_night"] = price
+		}
 	}
 	if v := r.FormValue("caution_fee"); v != "" {
 		var fee float64
 		fmt.Sscanf(v, "%f", &fee)
 		addSet("caution_fee", fee)
+		if isDraft {
+			draftPatch["caution_fee"] = fee
+		}
 	}
 	if v := r.FormValue("amenities"); v != "" {
 		var amenities []string
@@ -454,6 +1128,9 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 		}
 		b, _ := json.Marshal(amenities)
 		addSet("amenities", b)
+		if isDraft {
+			draftPatch["amenities"] = amenities
+		}
 	}
 	if v := r.FormValue("house_rules"); v != "" {
 		var rules []string
@@ -463,6 +1140,9 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 		}
 		b, _ := json.Marshal(rules)
 		addSet("house_rules", b)
+		if isDraft {
+			draftPatch["house_rules"] = rules
+		}
 	}
 	if v := r.FormValue("max_adults"); v != "" {
 		var n int
@@ -472,27 +1152,43 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		addSet("max_adults", n)
+		if isDraft {
+			draftPatch["max_adults"] = n
+		}
 	}
 	if v := r.FormValue("max_children"); v != "" {
 		var n int
 		fmt.Sscanf(v, "%d", &n)
 		addSet("max_children", n)
+		if isDraft {
+			draftPatch["max_children"] = n
+		}
 	}
 	if v := r.FormValue("state"); v != "" {
 		addSet("state", v)
+		if isDraft {
+			draftPatch["state"] = v
+		}
 	}
 	if v := r.FormValue("city"); v != "" {
 		addSet("city", v)
+		if isDraft {
+			draftPatch["city"] = v
+		}
 	}
 	if v := r.FormValue("street"); v != "" {
 		addSet("street", v)
+		if isDraft {
+			draftPatch["street"] = v
+		}
 	}
 	if v := r.FormValue("status"); v != "" {
-		if v != "active" && v != "inactive" {
-			utils.WriteError(w, "status must be active or inactive", http.StatusBadRequest)
+		if v == "active" || v == "inactive" {
+			addSet("status", v)
+		} else if v != "draft" {
+			utils.WriteError(w, "status must be active or inactive (use /publish to publish a draft)", http.StatusBadRequest)
 			return
 		}
-		addSet("status", v)
 	}
 
 	if latStr, lngStr := r.FormValue("latitude"), r.FormValue("longitude"); latStr != "" && lngStr != "" {
@@ -502,6 +1198,20 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 		setClauses = append(setClauses, fmt.Sprintf("location = ST_SetSRID(ST_MakePoint($%d, $%d), 4326)", argIdx, argIdx+1))
 		args = append(args, lng, lat)
 		argIdx += 2
+		if isDraft {
+			draftPatch["latitude"] = lat
+			draftPatch["longitude"] = lng
+		}
+	}
+
+	if isDraft && len(draftPatch) > 0 {
+		// Merge new fields into draft_data using jsonb concat operator
+		patchJSON, _ := json.Marshal(draftPatch)
+		setClauses = append(setClauses, fmt.Sprintf(
+			"draft_data = COALESCE(draft_data, '{}'::jsonb) || $%d::jsonb", argIdx,
+		))
+		args = append(args, string(patchJSON))
+		argIdx++
 	}
 
 	if r.MultipartForm != nil && len(r.MultipartForm.File["images"]) > 0 {
@@ -510,16 +1220,13 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 			utils.WriteError(w, "maximum 5 images allowed", http.StatusBadRequest)
 			return
 		}
-
 		ctx60, cancel60 := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel60()
-
 		cloud, err := utils.InitCloudinary()
 		if err != nil {
 			utils.WriteError(w, "failed to initialize image service", http.StatusInternalServerError)
 			return
 		}
-
 		var oldImages []shortlet.PropertyImage
 		if json.Unmarshal(existingImagesRaw, &oldImages) == nil {
 			var oldIDs []string
@@ -532,7 +1239,6 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 				go handlers.CleanupUploads(context.Background(), cloud, oldIDs)
 			}
 		}
-
 		var files []utils.UploadFile
 		var openFiles []io.Closer
 		for _, h := range imageHeaders {
@@ -548,13 +1254,11 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 				f.Close()
 			}
 		}()
-
 		urls, publicIDs, err := handlers.UploadFilesConcurrently(ctx60, cloud, files, "properties")
 		if err != nil {
 			utils.WriteError(w, "failed to upload images", http.StatusInternalServerError)
 			return
 		}
-
 		now := time.Now()
 		var newImages []shortlet.PropertyImage
 		for i, url := range urls {
@@ -607,6 +1311,12 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(imagesRaw, &prop.Images)
 	json.Unmarshal(amenitiesRaw, &prop.Amenities)
 	json.Unmarshal(rulesRaw, &prop.HouseRules)
+
+	go func() {
+		bgCtx := context.Background()
+		shortletcache.InvalidateProperty(bgCtx, propID.String())
+		shortletcache.InvalidateMyProperties(bgCtx, userID.String())
+	}()
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":   "success",
@@ -687,6 +1397,12 @@ func DeleteProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go func() {
+		bgCtx := context.Background()
+		shortletcache.InvalidateProperty(bgCtx, propID.String())
+		shortletcache.InvalidateMyProperties(bgCtx, userID.String())
+	}()
+
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":  "success",
 		"message": "property listing deleted",
@@ -728,6 +1444,30 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheKey := shortletcache.KeyPropertyDetail(propID.String())
+	if role != "owner" {
+		type cachedResp struct {
+			Status  string                 `json:"status"`
+			Data    shortlet.Property      `json:"data"`
+			IsSaved bool                   `json:"is_saved"`
+			Owner   map[string]interface{} `json:"owner"`
+		}
+		var cached cachedResp
+		if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cached); hit {
+			if role == "client" && userID != uuid.Nil {
+				var isSaved bool
+				ctx2, cancel2 := context.WithTimeout(r.Context(), 3*time.Second)
+				defer cancel2()
+				db.QueryRow(ctx2, `
+					SELECT EXISTS(SELECT 1 FROM saved_listings WHERE client_id = $1 AND property_id = $2)
+				`, userID, propID).Scan(&isSaved)
+				cached.IsSaved = isSaved
+			}
+			utils.WriteJSON(w, cached)
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
@@ -751,7 +1491,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 	if role != "owner" {
 		query += " AND p.status = 'active'"
 	} else {
-		query += " AND (p.status = 'active' OR p.owner_id = $2)"
+		query += " AND (p.status = 'active' OR p.status = 'draft' OR p.owner_id = $2)"
 	}
 
 	var prop shortlet.Property
@@ -806,16 +1546,34 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	utils.WriteJSON(w, map[string]interface{}{
+	ownerMap := map[string]interface{}{
+		"id":     prop.OwnerID,
+		"name":   ownerName,
+		"avatar": ownerAvatarURL,
+	}
+
+	resp := map[string]interface{}{
 		"status":   "success",
 		"data":     prop,
 		"is_saved": isSaved,
-		"owner": map[string]interface{}{
-			"id":     prop.OwnerID,
-			"name":   ownerName,
-			"avatar": ownerAvatarURL,
-		},
-	})
+		"owner":    ownerMap,
+	}
+
+	if role != "owner" {
+		go shortletcache.SetCached(
+			context.Background(),
+			cacheKey,
+			map[string]interface{}{
+				"status":   "success",
+				"data":     prop,
+				"is_saved": false,
+				"owner":    ownerMap,
+			},
+			shortletcache.TTLPropertyDetail,
+		)
+	}
+
+	utils.WriteJSON(w, resp)
 }
 
 // ============================================================================
@@ -855,6 +1613,19 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 	db := sqlconnect.DB
 	if db == nil {
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	cacheKey := shortletcache.KeyPropertyList(r.URL.RawQuery)
+	type listResp struct {
+		Status     string              `json:"status"`
+		Count      int                 `json:"count"`
+		Data       []shortlet.Property `json:"data"`
+		Pagination map[string]int      `json:"pagination"`
+	}
+	var cached listResp
+	if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cached); hit {
+		utils.WriteJSON(w, cached)
 		return
 	}
 
@@ -921,7 +1692,6 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 		addCond("p.max_children >= $%d", n)
 	}
 
-	// Amenities filter — all requested amenities must be present
 	if v := q.Get("amenities"); v != "" {
 		parts := strings.Split(v, ",")
 		for _, a := range parts {
@@ -936,7 +1706,6 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Full-text search
 	if v := q.Get("search"); v != "" {
 		search := "%" + strings.TrimSpace(v) + "%"
 		conditions = append(conditions, fmt.Sprintf(
@@ -947,7 +1716,6 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 		argIdx++
 	}
 
-	// Date availability filter
 	checkin := q.Get("checkin")
 	checkout := q.Get("checkout")
 	if checkin != "" && checkout != "" {
@@ -978,7 +1746,6 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 
 	where := "WHERE " + strings.Join(conditions, " AND ")
 
-	// Sort
 	orderBy := "ORDER BY p.created_at DESC"
 	switch q.Get("sort") {
 	case "price_asc":
@@ -1042,7 +1809,7 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalPages := (total + limit - 1) / limit
-	utils.WriteJSON(w, map[string]interface{}{
+	result := map[string]interface{}{
 		"status": "success",
 		"count":  len(properties),
 		"data":   properties,
@@ -1050,7 +1817,11 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 			"total": total, "page": page,
 			"limit": limit, "total_pages": totalPages,
 		},
-	})
+	}
+
+	go shortletcache.SetCached(context.Background(), cacheKey, result, shortletcache.TTLPropertyList)
+
+	utils.WriteJSON(w, result)
 }
 
 // ============================================================================
@@ -1094,13 +1865,27 @@ func GetMyProperties(w http.ResponseWriter, r *http.Request) {
 
 	page, limit := utils.GetPaginationParams(r)
 	offset := (page - 1) * limit
+	statusFilter := r.URL.Query().Get("status")
+
+	cacheKey := shortletcache.KeyMyProperties(userID.String(), statusFilter, page, limit)
+	type listResp struct {
+		Status     string              `json:"status"`
+		Count      int                 `json:"count"`
+		Data       []shortlet.Property `json:"data"`
+		Pagination map[string]int      `json:"pagination"`
+	}
+	var cached listResp
+	if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cached); hit {
+		utils.WriteJSON(w, cached)
+		return
+	}
 
 	args := []interface{}{userID}
-	where := "owner_id = $1 AND deleted_at IS NULL"
+	where := "owner_id = $1 AND deleted_at IS NULL AND status != 'draft'"
 
-	if s := r.URL.Query().Get("status"); s != "" {
+	if statusFilter != "" {
 		where += " AND status = $2"
-		args = append(args, s)
+		args = append(args, statusFilter)
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -1152,7 +1937,7 @@ func GetMyProperties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalPages := (total + limit - 1) / limit
-	utils.WriteJSON(w, map[string]interface{}{
+	result := map[string]interface{}{
 		"status": "success",
 		"count":  len(properties),
 		"data":   properties,
@@ -1160,5 +1945,9 @@ func GetMyProperties(w http.ResponseWriter, r *http.Request) {
 			"total": total, "page": page,
 			"limit": limit, "total_pages": totalPages,
 		},
-	})
+	}
+
+	go shortletcache.SetCached(context.Background(), cacheKey, result, shortletcache.TTLMyProperties)
+
+	utils.WriteJSON(w, result)
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	shortletcache "leti_server/internal/api/handlers/shortlet/shortletcache"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -195,6 +196,8 @@ func SetPropertyAvailability(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go shortletcache.InvalidateProperty(context.Background(), propID.String())
+
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":       "success",
 		"message":      "availability window saved",
@@ -249,6 +252,8 @@ func DeletePropertyAvailability(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "availability window not found", http.StatusNotFound)
 		return
 	}
+
+	go shortletcache.InvalidateProperty(context.Background(), propID.String())
 
 	utils.WriteJSON(w, map[string]interface{}{"status": "success", "message": "availability window removed"})
 }
@@ -354,6 +359,8 @@ func BlockPropertyDate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go shortletcache.InvalidateProperty(context.Background(), propID.String())
+
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":   "success",
 		"message":  "date blocked successfully",
@@ -403,6 +410,8 @@ func UnblockPropertyDate(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "blocked date not found", http.StatusNotFound)
 		return
 	}
+
+	go shortletcache.InvalidateProperty(context.Background(), propID.String())
 
 	utils.WriteJSON(w, map[string]interface{}{"status": "success", "message": "date unblocked"})
 }
@@ -464,6 +473,20 @@ func GetPropertyCalendar(w http.ResponseWriter, r *http.Request) {
 	}
 	if to.Sub(from) > 90*24*time.Hour {
 		utils.WriteError(w, "date range cannot exceed 90 days", http.StatusBadRequest)
+		return
+	}
+
+	cacheKey := shortletcache.KeyCalendar(propID.String(), fromStr, toStr)
+	type calResp struct {
+		Status       string                 `json:"status"`
+		Count        int                    `json:"count"`
+		CheckInTime  string                 `json:"check_in_time"`
+		CheckOutTime string                 `json:"check_out_time"`
+		Data         []shortlet.CalendarDay `json:"data"`
+	}
+	var cached calResp
+	if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cached); hit {
+		utils.WriteJSON(w, cached)
 		return
 	}
 
@@ -582,13 +605,17 @@ func GetPropertyCalendar(w http.ResponseWriter, r *http.Request) {
 		days = append(days, day)
 	}
 
-	utils.WriteJSON(w, map[string]interface{}{
+	result := map[string]interface{}{
 		"status":         "success",
 		"count":          len(days),
 		"check_in_time":  checkInTime,
 		"check_out_time": checkOutTime,
 		"data":           days,
-	})
+	}
+
+	go shortletcache.SetCached(context.Background(), cacheKey, result, shortletcache.TTLCalendar)
+
+	utils.WriteJSON(w, result)
 }
 
 // ============================================================================
@@ -644,9 +671,11 @@ func ToggleSavedListing(w http.ResponseWriter, r *http.Request) {
 
 	if alreadySaved {
 		db.Exec(ctx, `DELETE FROM saved_listings WHERE client_id = $1 AND property_id = $2`, userID, propID)
+		go shortletcache.InvalidateSavedListings(context.Background(), userID.String())
 		utils.WriteJSON(w, map[string]interface{}{"status": "success", "message": "listing removed from saved", "saved": false})
 	} else {
 		db.Exec(ctx, `INSERT INTO saved_listings (client_id, property_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, userID, propID)
+		go shortletcache.InvalidateSavedListings(context.Background(), userID.String())
 		utils.WriteJSON(w, map[string]interface{}{"status": "success", "message": "listing saved", "saved": true})
 	}
 }
@@ -685,6 +714,19 @@ func GetSavedListings(w http.ResponseWriter, r *http.Request) {
 
 	page, limit := utils.GetPaginationParams(r)
 	offset := (page - 1) * limit
+
+	cacheKey := shortletcache.KeySavedListings(userID.String(), page, limit)
+	type savedResp struct {
+		Status     string              `json:"status"`
+		Count      int                 `json:"count"`
+		Data       []shortlet.Property `json:"data"`
+		Pagination map[string]int      `json:"pagination"`
+	}
+	var cached savedResp
+	if hit, _ := shortletcache.GetCached(r.Context(), cacheKey, &cached); hit {
+		utils.WriteJSON(w, cached)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -738,7 +780,7 @@ func GetSavedListings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalPages := (total + limit - 1) / limit
-	utils.WriteJSON(w, map[string]interface{}{
+	result := map[string]interface{}{
 		"status": "success",
 		"count":  len(properties),
 		"data":   properties,
@@ -746,5 +788,9 @@ func GetSavedListings(w http.ResponseWriter, r *http.Request) {
 			"total": total, "page": page,
 			"limit": limit, "total_pages": totalPages,
 		},
-	})
+	}
+
+	go shortletcache.SetCached(context.Background(), cacheKey, result, shortletcache.TTLSavedListings)
+
+	utils.WriteJSON(w, result)
 }

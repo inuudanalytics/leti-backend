@@ -1395,7 +1395,7 @@ func GetUserMeHandler(w http.ResponseWriter, r *http.Request) {
 			u.id, u.first_name, u.last_name, u.username, u.email, u.phone_number,
 			u.email_verified, u.phone_verified, u.status,
 			u.active_role, u.user_created_at, u.auth_provider,
-			u.avatar, u.is_online, u.recovery_email, u.recovery_email_verified,
+			u.avatar, u.is_online, u.recovery_email, u.recovery_email_verified, u.bio,
 			w.id, w.user_id, w.balance, w.currency,
 			w.wallet_created_at, w.last_transaction_at, w.is_active
 		FROM users u
@@ -1415,8 +1415,7 @@ func GetUserMeHandler(w http.ResponseWriter, r *http.Request) {
 		&user.ID, &user.FirstName, &user.LastName, &user.Username, &emailNull, &phoneNull,
 		&user.EmailVerified, &user.PhoneVerified, &user.Status,
 		&user.ActiveRole, &user.UserCreatedAt, &user.AuthProvider,
-		&avatarJSON, &isOnline, &recoveryEmailNull, &recoveryEmailVerified,
-		&wallet.ID, &wallet.UserID, &wallet.Balance, &wallet.Currency,
+		&avatarJSON, &isOnline, &recoveryEmailNull, &recoveryEmailVerified, &user.Bio, &wallet.ID, &wallet.UserID, &wallet.Balance, &wallet.Currency,
 		&wallet.WalletCreatedAt, &lastTransactionAt, &wallet.IsActive,
 	)
 	if err != nil {

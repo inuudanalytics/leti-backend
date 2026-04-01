@@ -31,6 +31,7 @@ type User struct {
 	RecoveryEmailVerified bool        `json:"recovery_email_verified,omitempty" db:"recovery_email_verified"`
 	PhoneVerified         bool        `json:"phone_verified,omitempty"         db:"phone_verified"`
 	EmailVerified         bool        `json:"email_verified,omitempty"         db:"email_verified"`
+	Bio                   *string     `json:"bio,omitempty"`
 	DeletedAt             *time.Time  `json:"deleted_at,omitempty"             db:"deleted_at"`
 	Status                string      `json:"status,omitempty"                 db:"status"`
 	ActiveRole            string      `json:"active_role,omitempty"            db:"active_role"`
