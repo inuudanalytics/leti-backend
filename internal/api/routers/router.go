@@ -32,6 +32,8 @@ func MainRouter() *http.ServeMux {
 
 	apiMux.Handle("/profile/", profileSettingsRouter())
 
+	apiMux.Handle("/shortlet/", shortletRouter())
+
 	apiMux.Handle("/admin/", adminRouter())
 
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", apiMux))

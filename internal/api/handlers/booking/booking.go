@@ -1011,7 +1011,11 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 				map[string]interface{}{"booking_id": bk.ID, "amount": netPayout},
 			)
 			handlers.SendPushToUser(bk.ArtisanID, "Payment Released",
-				fmt.Sprintf("₦%.2f released to your wallet (after 8%% platform fee).", netPayout))
+				fmt.Sprintf("₦%.2f released to your wallet (after 8%% platform fee).", netPayout),
+				map[string]string{
+					"screen":     "ArtisanDashboard",
+					"booking_id": bk.ID.String(),
+				})
 
 			if clientEmail != "" {
 				utils.SendBookingCompletedEmail(clientEmail, clientFirstName, artisanFirstName, serviceName, bk.BookingDate)
@@ -1030,7 +1034,10 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 			handlers.SendPushToUser(bk.ClientID,
 				"Confirm Booking Completion",
 				fmt.Sprintf("%s has marked your booking as complete. Tap to confirm.", artisanFirstName),
-			)
+				map[string]string{
+					"screen":     "BookingDetails",
+					"booking_id": bk.ID.String(),
+				})
 		}
 	}(fullyComplete, role, bk, artisanCompletedAt)
 

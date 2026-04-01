@@ -537,6 +537,386 @@ definitions:
       updated_at:
         type: string
     type: object
+  shortlet.CalendarDay:
+    properties:
+      available:
+        type: boolean
+      blocked:
+        description: owner override
+        type: boolean
+      booked:
+        description: has confirmed order
+        type: boolean
+      check_in_time:
+        type: string
+      check_out_time:
+        type: string
+      date:
+        description: YYYY-MM-DD
+        type: string
+    type: object
+  shortlet.Order:
+    properties:
+      cancelled_at:
+        type: string
+      cancelled_by:
+        type: string
+      caution_fee:
+        type: number
+      check_in_date:
+        type: string
+      check_out_date:
+        type: string
+      checked_in_at:
+        type: string
+      checked_out_at:
+        type: string
+      client_id:
+        type: string
+      completed_at:
+        type: string
+      confirmed_at:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      num_adults:
+        type: integer
+      num_children:
+        type: integer
+      num_nights:
+        type: integer
+      owner_id:
+        type: string
+      payment_method:
+        type: string
+      payment_reference:
+        type: string
+      payment_status:
+        type: string
+      platform_fee_amount:
+        type: number
+      platform_fee_pct:
+        type: number
+      price_per_night:
+        type: number
+      property_id:
+        type: string
+      receipt_sent_at:
+        type: string
+      status:
+        type: string
+      subtotal:
+        type: number
+      total_amount:
+        type: number
+      updated_at:
+        type: string
+    type: object
+  shortlet.OrderPreviewResponse:
+    properties:
+      available:
+        type: boolean
+      check_in_time:
+        type: string
+      check_out_time:
+        type: string
+      status:
+        type: string
+      summary:
+        $ref: '#/definitions/shortlet.OrderSummary'
+    type: object
+  shortlet.OrderResponse:
+    properties:
+      message:
+        type: string
+      order:
+        $ref: '#/definitions/shortlet.Order'
+      status:
+        type: string
+      summary:
+        $ref: '#/definitions/shortlet.OrderSummary'
+    type: object
+  shortlet.OrderSummary:
+    properties:
+      caution_fee:
+        type: number
+      num_nights:
+        type: integer
+      platform_fee_amount:
+        type: number
+      platform_fee_pct:
+        type: number
+      price_per_night:
+        type: number
+      subtotal:
+        type: number
+      total_amount:
+        type: number
+    type: object
+  shortlet.Property:
+    properties:
+      amenities:
+        items:
+          type: string
+        type: array
+      avg_rating:
+        type: number
+      caution_fee:
+        type: number
+      city:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        type: string
+      house_rules:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/shortlet.PropertyImage'
+        type: array
+      latitude:
+        type: number
+      longitude:
+        type: number
+      max_adults:
+        type: integer
+      max_children:
+        type: integer
+      name:
+        type: string
+      owner_id:
+        type: string
+      price_per_night:
+        type: number
+      property_type:
+        type: string
+      review_count:
+        type: integer
+      state:
+        type: string
+      status:
+        type: string
+      street:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  shortlet.PropertyAvailability:
+    properties:
+      available_from:
+        description: YYYY-MM-DD
+        type: string
+      available_to:
+        type: string
+      check_in_time:
+        description: HH:MM
+        type: string
+      check_out_time:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      property_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  shortlet.PropertyAvailabilityOverride:
+    properties:
+      blocked_date:
+        description: YYYY-MM-DD
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      property_id:
+        type: string
+      reason:
+        type: string
+    type: object
+  shortlet.PropertyAvailabilityOverrideResponse:
+    properties:
+      message:
+        type: string
+      override:
+        $ref: '#/definitions/shortlet.PropertyAvailabilityOverride'
+      status:
+        type: string
+    type: object
+  shortlet.PropertyAvailabilityResponse:
+    properties:
+      availability:
+        $ref: '#/definitions/shortlet.PropertyAvailability'
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  shortlet.PropertyCalendarResponse:
+    properties:
+      check_in_time:
+        type: string
+      check_out_time:
+        type: string
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/shortlet.CalendarDay'
+        type: array
+      status:
+        type: string
+    type: object
+  shortlet.PropertyDetailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/shortlet.Property'
+      is_saved:
+        type: boolean
+      owner:
+        additionalProperties: true
+        type: object
+      status:
+        type: string
+    type: object
+  shortlet.PropertyImage:
+    properties:
+      public_id:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  shortlet.PropertyListResponse:
+    properties:
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/shortlet.Property'
+        type: array
+      pagination:
+        additionalProperties:
+          type: integer
+        type: object
+      status:
+        type: string
+    type: object
+  shortlet.PropertyResponse:
+    properties:
+      message:
+        type: string
+      property:
+        $ref: '#/definitions/shortlet.Property'
+      status:
+        type: string
+    type: object
+  shortlet.PropertyReview:
+    properties:
+      client_id:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      property_id:
+        type: string
+      rating:
+        type: integer
+      replies:
+        items:
+          $ref: '#/definitions/shortlet.PropertyReviewReply'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  shortlet.PropertyReviewListResponse:
+    properties:
+      avg_rating:
+        type: number
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/shortlet.PropertyReview'
+        type: array
+      pagination:
+        additionalProperties:
+          type: integer
+        type: object
+      review_count:
+        type: integer
+      status:
+        type: string
+    type: object
+  shortlet.PropertyReviewReply:
+    properties:
+      author_id:
+        type: string
+      author_name:
+        type: string
+      author_role:
+        type: string
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      review_id:
+        type: string
+    type: object
+  shortlet.PropertyReviewReplyResponse:
+    properties:
+      message:
+        type: string
+      reply:
+        $ref: '#/definitions/shortlet.PropertyReviewReply'
+      status:
+        type: string
+    type: object
+  shortlet.PropertyReviewResponse:
+    properties:
+      message:
+        type: string
+      review:
+        $ref: '#/definitions/shortlet.PropertyReview'
+      status:
+        type: string
+    type: object
+  shortlet.SavedListingsResponse:
+    properties:
+      count:
+        type: integer
+      data:
+        items:
+          $ref: '#/definitions/shortlet.Property'
+        type: array
+      pagination:
+        additionalProperties:
+          type: integer
+        type: object
+      status:
+        type: string
+    type: object
 host: leti-backend.onrender.com
 info:
   contact: {}
@@ -3811,6 +4191,88 @@ paths:
       summary: Confirm secondary contact
       tags:
       - Users
+  /auth/users/verify/confirm-contact-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verifies the OTP sent to the previously unverified contact on the
+        account.
+      parameters:
+      - description: OTP code
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            otp:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm OTP for unverified contact
+      tags:
+      - Users
+  /auth/users/verify/request-contact-otp:
+    post:
+      description: Sends an OTP to the contact (email or phone) that was provided
+        at signup but not yet verified.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Request OTP for unverified contact
+      tags:
+      - Users
   /auth/verify-otp:
     post:
       consumes:
@@ -4150,8 +4612,7 @@ paths:
       - Booking
   /bookings/{id}/complete:
     patch:
-      description: Artisan marks a confirmed booking as completed after delivering
-        the service. The escrow payment is released to the artisan at this point.
+      description: Either the artisan or client can mark a booking as completed.
       parameters:
       - description: Booking UUID
         in: path
@@ -4186,9 +4647,16 @@ paths:
               error:
                 type: string
             type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: Mark a booking as completed (artisan only)
+      summary: Mark a booking as completed
       tags:
       - Booking
   /bookings/{id}/confirm:
@@ -4844,6 +5312,38 @@ paths:
       summary: Connect to the chat WebSocket
       tags:
       - Chat
+  /clients/me/saved-listings:
+    get:
+      description: Returns a paginated list of properties that the authenticated client
+        has saved.
+      parameters:
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.SavedListingsResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get saved / bookmarked properties
+      tags:
+      - Saved Listings
   /notifications/{id}:
     delete:
       description: Permanently deletes a single notification. The notification must
@@ -5054,6 +5554,421 @@ paths:
       summary: Mark all notifications as read
       tags:
       - Notifications
+  /orders:
+    get:
+      description: Returns a paginated list of orders. Clients see orders they made;
+        owners see orders for their properties. Filter by status optionally.
+      parameters:
+      - description: 'Filter by status: pending, confirmed, cancelled, checked_in,
+          checked_out, completed, disputed'
+        in: query
+        name: status
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/shortlet.Order'
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List orders
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Creates a shortlet booking for a client. The order is created with
+        status='pending' and payment_status='pending'. Payment is collected immediately
+        via wallet or Paystack. On successful payment the order is automatically confirmed.
+        Double-booking is prevented with a transaction-level lock.
+      parameters:
+      - description: 'payment_method: wallet | paystack; email only needed for Paystack
+          if account has no email'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            check_in_date:
+              type: string
+            check_out_date:
+              type: string
+            email:
+              type: string
+            num_adults:
+              type: integer
+            num_children:
+              type: integer
+            payment_method:
+              type: string
+            property_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/shortlet.OrderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "402":
+          description: Payment Required
+          schema:
+            properties:
+              code:
+                type: string
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a booking (order)
+      tags:
+      - Orders
+  /orders/{id}:
+    get:
+      description: Returns full details for an order. The caller must be the client
+        or the owner on the order.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/shortlet.Order'
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single order
+      tags:
+      - Orders
+  /orders/{id}/cancel:
+    patch:
+      description: Cancels a pending or confirmed order. The client or owner can cancel.
+        If payment was made, the full amount (including caution fee) is refunded to
+        the client's wallet via escrow reversal. Orders with status checked_in or
+        completed cannot be cancelled.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              refund_processed:
+                type: boolean
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel an order
+      tags:
+      - Orders
+  /orders/{id}/check-in:
+    patch:
+      description: Owner marks the guest as checked in. Order must be confirmed and
+        check-in date must be today or earlier.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark guest as checked in (owner only)
+      tags:
+      - Orders
+  /orders/{id}/check-out:
+    patch:
+      description: Owner marks the guest as checked out. This completes the booking
+        and releases the net payout (after platform commission) to the owner's wallet.
+        The caution fee is released back to the client.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              payout:
+                type: number
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark guest as checked out — completes booking and releases escrow (owner
+        only)
+      tags:
+      - Orders
+  /orders/{id}/reviews:
+    post:
+      consumes:
+      - application/json
+      description: Allows a client to leave a review (rating + optional comment) for
+        a property after their order is completed. One review per order is enforced.
+        The property's avg_rating is updated automatically via a DB trigger.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rating 1–5; comment is optional
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            comment:
+              type: string
+            rating:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/shortlet.PropertyReviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Review a property after stay
+      tags:
+      - Reviews
+  /orders/preview:
+    post:
+      consumes:
+      - application/json
+      description: Calculates and returns a full cost breakdown for a potential booking
+        WITHOUT creating the order or charging the client. Use this to display a booking
+        summary screen before the client confirms. Also validates date availability.
+      parameters:
+      - description: Preview request
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            check_in_date:
+              type: string
+            check_out_date:
+              type: string
+            num_adults:
+              type: integer
+            num_children:
+              type: integer
+            property_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.OrderPreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Preview booking cost breakdown
+      tags:
+      - Orders
+  /owners/me/properties:
+    get:
+      description: Returns all properties (active, inactive, pending_review) belonging
+        to the authenticated owner.
+      parameters:
+      - description: 'Filter by status: active, inactive, pending_review, suspended'
+        in: query
+        name: status
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyListResponse'
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get owner's own listings
+      tags:
+      - Properties
   /profile/artisan/address:
     get:
       description: Returns all addresses for the authenticated artisan.
@@ -6466,6 +7381,745 @@ paths:
       summary: Set owner primary bank account
       tags:
       - Owner Bank Details
+  /properties:
+    get:
+      description: Returns a paginated list of active properties. Supports rich filtering,
+        full-text search, and sorting.
+      parameters:
+      - description: Filter by state
+        in: query
+        name: state
+        type: string
+      - description: Filter by city
+        in: query
+        name: city
+        type: string
+      - description: 'Filter by type: apartment, studio, 1_bedroom, etc.'
+        in: query
+        name: property_type
+        type: string
+      - description: Minimum price per night
+        in: query
+        name: min_price
+        type: number
+      - description: Maximum price per night
+        in: query
+        name: max_price
+        type: number
+      - description: Minimum average rating (0–5)
+        in: query
+        name: min_rating
+        type: number
+      - description: Maximum average rating
+        in: query
+        name: max_rating
+        type: number
+      - description: Minimum review count
+        in: query
+        name: min_reviews
+        type: integer
+      - description: Comma-separated list of required amenities e.g. WiFi,AC
+        in: query
+        name: amenities
+        type: string
+      - description: Minimum adult capacity
+        in: query
+        name: min_adults
+        type: integer
+      - description: Minimum children capacity
+        in: query
+        name: min_children
+        type: integer
+      - description: Check-in date YYYY-MM-DD — filters to available properties
+        in: query
+        name: checkin
+        type: string
+      - description: Check-out date YYYY-MM-DD — filters to available properties
+        in: query
+        name: checkout
+        type: string
+      - description: Full-text search on name, description, city, street
+        in: query
+        name: search
+        type: string
+      - description: 'Sort field: price_asc, price_desc, rating_desc, newest (default:
+          newest)'
+        in: query
+        name: sort
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20, max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyListResponse'
+      summary: List / search properties
+      tags:
+      - Properties
+    post:
+      consumes:
+      - multipart/form-data
+      description: Allows an authenticated owner to create a new shortlet property
+        listing. Images are uploaded via multipart form. Up to 5 images are accepted.
+        The listing starts as 'active' by default.
+      parameters:
+      - description: Property name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Property description
+        in: formData
+        name: description
+        type: string
+      - description: 'One of: apartment, studio, 1_bedroom, 2_bedroom, 3_bedroom,
+          4_bedroom, 5_bedroom_plus, duplex, penthouse, villa, bungalow'
+        in: formData
+        name: property_type
+        required: true
+        type: string
+      - description: Nightly rate in NGN
+        in: formData
+        name: price_per_night
+        required: true
+        type: number
+      - description: Refundable caution fee in NGN (default 0)
+        in: formData
+        name: caution_fee
+        type: number
+      - description: JSON array string e.g. [\
+        in: formData
+        name: amenities
+        type: string
+      - description: JSON array string e.g. [\
+        in: formData
+        name: house_rules
+        type: string
+      - description: Max number of adult guests
+        in: formData
+        name: max_adults
+        required: true
+        type: integer
+      - description: Max number of children (default 0)
+        in: formData
+        name: max_children
+        type: integer
+      - description: Nigerian state
+        in: formData
+        name: state
+        required: true
+        type: string
+      - description: City
+        in: formData
+        name: city
+        required: true
+        type: string
+      - description: Street address
+        in: formData
+        name: street
+        required: true
+        type: string
+      - description: Latitude coordinate
+        in: formData
+        name: latitude
+        type: number
+      - description: Longitude coordinate
+        in: formData
+        name: longitude
+        type: number
+      - description: Property images (max 5)
+        in: formData
+        name: images
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/shortlet.PropertyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a property listing
+      tags:
+      - Properties
+  /properties/{id}:
+    delete:
+      description: Soft-deletes a property. Only the owner can delete it. Properties
+        with active confirmed orders cannot be deleted.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a property listing
+      tags:
+      - Properties
+    get:
+      description: Returns full details of a property, including its review summary.
+        Clients can access active listings; owners can access their own regardless
+        of status.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyDetailResponse'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single property
+      tags:
+      - Properties
+    patch:
+      consumes:
+      - multipart/form-data
+      description: Allows the owner to update any field of their property listing.
+        Send only the fields you want to change. Images that are not re-uploaded remain
+        unchanged. Sending new images replaces all existing ones (max 5 total).
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Property name
+        in: formData
+        name: name
+        type: string
+      - description: Property description
+        in: formData
+        name: description
+        type: string
+      - description: Property type
+        in: formData
+        name: property_type
+        type: string
+      - description: Nightly rate in NGN
+        in: formData
+        name: price_per_night
+        type: number
+      - description: Caution fee in NGN
+        in: formData
+        name: caution_fee
+        type: number
+      - description: JSON array of amenity strings
+        in: formData
+        name: amenities
+        type: string
+      - description: JSON array of rule strings
+        in: formData
+        name: house_rules
+        type: string
+      - description: Max adults
+        in: formData
+        name: max_adults
+        type: integer
+      - description: Max children
+        in: formData
+        name: max_children
+        type: integer
+      - description: State
+        in: formData
+        name: state
+        type: string
+      - description: City
+        in: formData
+        name: city
+        type: string
+      - description: Street
+        in: formData
+        name: street
+        type: string
+      - description: Latitude
+        in: formData
+        name: latitude
+        type: number
+      - description: Longitude
+        in: formData
+        name: longitude
+        type: number
+      - description: active or inactive
+        in: formData
+        name: status
+        type: string
+      - description: New images (replaces all existing, max 5)
+        in: formData
+        name: images
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a property listing
+      tags:
+      - Properties
+  /properties/{id}/availability:
+    post:
+      consumes:
+      - application/json
+      description: Creates or updates an availability date range for the property.
+        Multiple non-overlapping windows are allowed (e.g. different months). If a
+        range with the same from/to already exists it is updated in place.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dates in YYYY-MM-DD, times in HH:MM (default 14:00 / 11:00)
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            available_from:
+              type: string
+            available_to:
+              type: string
+            check_in_time:
+              type: string
+            check_out_time:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyAvailabilityResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set availability window for a property
+      tags:
+      - Properties / Availability
+  /properties/{id}/availability/{avail_id}:
+    delete:
+      description: Deactivates an availability window. Does not affect existing confirmed
+        orders.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Availability UUID
+        in: path
+        name: avail_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove an availability window
+      tags:
+      - Properties / Availability
+  /properties/{id}/availability/block:
+    post:
+      consumes:
+      - application/json
+      description: Adds a date-level override that makes a day unavailable (e.g. personal
+        use, maintenance). Cannot block a date that has a confirmed booking.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: date in YYYY-MM-DD
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            date:
+              type: string
+            reason:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyAvailabilityOverrideResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Block a specific date
+      tags:
+      - Properties / Availability
+  /properties/{id}/availability/block/{date}:
+    delete:
+      description: Removes a previously blocked date override, making the day available
+        again (subject to the active availability windows).
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Date in YYYY-MM-DD
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Unblock a specific date
+      tags:
+      - Properties / Availability
+  /properties/{id}/calendar:
+    get:
+      description: Returns a day-by-day availability breakdown for a property over
+        a date range (max 90 days). Each day indicates whether it is available, blocked
+        by the owner, or already booked. Designed to power a calendar/date-picker
+        UI.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Start date YYYY-MM-DD (inclusive)
+        in: query
+        name: from
+        required: true
+        type: string
+      - description: End date YYYY-MM-DD (inclusive, max 90 days from from)
+        in: query
+        name: to
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyCalendarResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get property calendar
+      tags:
+      - Properties / Availability
+  /properties/{id}/reviews:
+    get:
+      description: Returns a paginated list of reviews for a property, including any
+        replies. Also returns the aggregate rating summary (avg, count, breakdown
+        by star).
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 10)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/shortlet.PropertyReviewListResponse'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get reviews for a property
+      tags:
+      - Reviews
+  /properties/{id}/save:
+    post:
+      description: Toggles the saved/bookmark status for a property. If not saved,
+        it saves it. If already saved, it removes it. Only clients can save listings.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              saved:
+                type: boolean
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Save or unsave a property
+      tags:
+      - Saved Listings
+  /reviews/{id}/reply:
+    post:
+      consumes:
+      - application/json
+      description: Allows the review author (client) or the property owner to reply
+        to a review once each. Each party may only reply once. To reply as an owner,
+        you must be the owner of the property being reviewed.
+      parameters:
+      - description: Review UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reply text
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            body:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/shortlet.PropertyReviewReplyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reply to a property review
+      tags:
+      - Reviews
   /wallet/fund:
     post:
       consumes:

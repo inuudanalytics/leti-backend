@@ -9,7 +9,7 @@ import (
 	"firebase.google.com/go/v4/messaging"
 )
 
-func SendPushNotification(token, title, body string) error {
+func SendPushNotification(token, title, body string, data ...map[string]string) error {
 	ctx := context.Background()
 
 	client, err := config.FirebaseApp.Messaging(ctx)
@@ -23,6 +23,10 @@ func SendPushNotification(token, title, body string) error {
 			Title: title,
 			Body:  body,
 		},
+	}
+
+	if len(data) > 0 && data[0] != nil {
+		message.Data = data[0]
 	}
 
 	_, err = client.Send(ctx, message)

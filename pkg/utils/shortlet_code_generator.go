@@ -8,8 +8,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// GenerateAgentCode generates a unique, short agent code like OFF-26-4F7G9K2L
-func GenerateAgentCode() string {
+// GenerateShortletCode generates a unique, short agent code like Let-26-4F7G9K2L
+func GenerateShortletCode() string {
 	year := time.Now().Year() % 100
 
 	u := uuid.New()

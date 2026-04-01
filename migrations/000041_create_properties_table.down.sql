@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS idx_properties_owner_id;
+DROP INDEX IF EXISTS idx_properties_status;
+DROP INDEX IF EXISTS idx_properties_type;
+DROP INDEX IF EXISTS idx_properties_state_city;
+DROP INDEX IF EXISTS idx_properties_price;
+DROP INDEX IF EXISTS idx_properties_rating;
+DROP INDEX IF EXISTS idx_properties_location;
+DROP INDEX IF EXISTS idx_properties_deleted_at;
+DROP INDEX IF EXISTS idx_properties_amenities; 
+DROP TABLE IF EXISTS properties;

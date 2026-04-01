@@ -194,7 +194,11 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 			utils.Logger.Errorf("failed to save review notification for artisan %s: %v", artisanID, err)
 		}
 	}()
-	go handlers.SendPushToUser(artisanID, notifTitle, notifBody)
+	go handlers.SendPushToUser(artisanID, notifTitle, notifBody, map[string]string{
+		"screen":     "Reviews",
+		"review_id":  reviewID.String(),
+		"artisan_id": artisanID.String(),
+	})
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":  "success",
@@ -615,7 +619,10 @@ func ReplyToReview(w http.ResponseWriter, r *http.Request) {
 			utils.Logger.Errorf("failed to save reply notification: %v", err)
 		}
 	}()
-	go handlers.SendPushToUser(notifRecipient, notifTitle, notifBody)
+	go handlers.SendPushToUser(notifRecipient, notifTitle, notifBody, map[string]string{
+		"screen":    "Reviews",
+		"review_id": reviewID.String(),
+	})
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":  "success",

@@ -157,7 +157,7 @@ func (h *Hub) DeliverTo(userID uuid.UUID, payload []byte) {
 // Push notification hook — set in main after hub initialisation
 // ============================================================================
 
-var PushNotifier func(userID uuid.UUID, title, body string)
+var PushNotifier func(userID uuid.UUID, title, body string, data ...map[string]string)
 
 // ============================================================================
 // Inbound routing

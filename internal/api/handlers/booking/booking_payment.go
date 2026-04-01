@@ -290,7 +290,12 @@ func processBookingWalletPayment(
 		).Scan(&artisanPhone)
 
 		handlers.SendPushToUser(bk.ArtisanID, "Payment Secured",
-			fmt.Sprintf("₦%.2f secured in escrow for your booking.", amount))
+			fmt.Sprintf("₦%.2f secured in escrow for your booking.", amount),
+			map[string]string{
+				"screen":     "BookingDetails",
+				"booking_id": bk.ID.String(),
+				"escrow_id":  escrowID.String(),
+			})
 	}()
 
 	utils.WriteJSON(w, map[string]interface{}{

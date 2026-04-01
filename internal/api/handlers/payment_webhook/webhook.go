@@ -11,6 +11,7 @@ import (
 
 	"leti_server/internal/api/handlers"
 	"leti_server/internal/api/services/notifications"
+	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/apperrors"
 	"leti_server/pkg/utils"
@@ -168,6 +169,7 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 	switch payload.Event {
 
 	// ── Wallet top-up  /  job payment  /  booking payment  (Paystack checkout) ─
+	// In processWebhookEvent, replace the entire "charge.success" case:
 	case "charge.success":
 		if payload.Data.Status != "success" {
 			markWebhookIgnored(db, reference)
@@ -191,7 +193,6 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 			return
 		}
 
-		// Paystack sends amount in kobo — convert to Naira
 		amountNaira := payload.Data.Amount / 100
 
 		procCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
@@ -204,23 +205,17 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 		}
 		defer tx.Rollback(procCtx)
 
+		var orderIDForNotif uuid.UUID // only populated for order_payment
+
 		switch transactionType {
 		case "credit":
-			// Wallet top-up initiated from the app's fund-wallet flow
 			processingErr = handleWalletCredit(procCtx, tx, db, userID, amountNaira, reference)
-
 		case "job_payment":
-			// Client paying for an artisan job (direct job flow — not a booking)
 			processingErr = handleJobPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
-
 		case "booking_payment":
-			// Client paying for a confirmed artisan booking
 			processingErr = handleBookingPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
-
 		case "order_payment":
-			// Shortlet order payment — stub until that flow is built
-			processingErr = handleOrderPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
-
+			orderIDForNotif, processingErr = handleOrderPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
 		default:
 			markWebhookFailed(db, reference, fmt.Sprintf("unknown transaction_type: %s", transactionType))
 			return
@@ -236,6 +231,10 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 			return
 		}
 
+		// Tx is committed — safe to query and notify
+		if transactionType == "order_payment" && orderIDForNotif != uuid.Nil {
+			go fireOrderPaymentNotifications(db, orderIDForNotif)
+		}
 	// ── Withdrawal transfer succeeded ─────────────────────────────────────────
 	case "transfer.success":
 		transferRef := payload.Data.Reference
@@ -331,6 +330,9 @@ func handleWalletCredit(
 			if err := notifications.SendPushNotification(token,
 				"Wallet Funded",
 				fmt.Sprintf("Your wallet has been credited with ₦%d.", amountNaira),
+				map[string]string{
+					"screen": "Wallet",
+				},
 			); err != nil {
 				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
 				if apperrors.IsInvalidOrExpiredTokenError(err) {
@@ -428,15 +430,18 @@ func handleJobPayment(
 		return fmt.Errorf("job_payment: failed to upsert commission: %w", err)
 	}
 
-	go func(aID uuid.UUID, amt float64) {
+	go func(aID uuid.UUID, amt float64, jID uuid.UUID) {
 		tokens, _ := handlers.GetUserFCMTokens(aID)
 		for _, token := range tokens {
 			notifications.SendPushNotification(token,
 				"Payment Secured",
 				fmt.Sprintf("₦%.2f secured in escrow via Paystack for your job.", amt),
-			)
+				map[string]string{
+					"screen": "ArtisanDashboard",
+					"job_id": jID.String(),
+				})
 		}
-	}(artisanID, amount)
+	}(artisanID, amount, jobID)
 
 	return nil
 }
@@ -538,21 +543,24 @@ func handleBookingPayment(
 		return fmt.Errorf("booking_payment: failed to upsert commission: %w", err)
 	}
 
-	go func(aID uuid.UUID, amt float64) {
+	go func(aID uuid.UUID, amt float64, bkID uuid.UUID) {
 		tokens, _ := handlers.GetUserFCMTokens(aID)
 		for _, token := range tokens {
 			notifications.SendPushNotification(token,
 				"Payment Secured",
 				fmt.Sprintf("₦%.2f secured in escrow via Paystack for your booking.", amt),
-			)
+				map[string]string{
+					"screen":     "BookingDetails",
+					"booking_id": bkID.String(),
+				})
 		}
-	}(artisanID, amount)
+	}(artisanID, amount, bookingID)
 
 	return nil
 }
 
 // ============================================================================
-// handleOrderPayment — stub for shortlet order payments
+// handleOrderPayment — for shortlet order payments
 // ============================================================================
 func handleOrderPayment(
 	ctx context.Context,
@@ -560,10 +568,123 @@ func handleOrderPayment(
 	metadata map[string]interface{},
 	amountNaira int,
 	reference string,
-) error {
-	// TODO: implement shortlet order escrow flow.
-	// Expected metadata: user_id, order_id, owner_id, transaction_type="order_payment"
-	return fmt.Errorf("order_payment: not yet implemented")
+) (uuid.UUID, error) {
+	userIDStr, _ := metadata["user_id"].(string)
+	orderIDStr, _ := metadata["order_id"].(string)
+	ownerIDStr, _ := metadata["owner_id"].(string)
+
+	if userIDStr == "" || orderIDStr == "" || ownerIDStr == "" {
+		return uuid.Nil, fmt.Errorf("order_payment: user_id, order_id, or owner_id missing in metadata")
+	}
+
+	clientID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: invalid user_id: %v", err)
+	}
+	orderID, err := uuid.Parse(orderIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: invalid order_id: %v", err)
+	}
+	ownerID, err := uuid.Parse(ownerIDStr)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: invalid owner_id: %v", err)
+	}
+
+	var exists bool
+	if err := tx.QueryRow(ctx, `
+        SELECT EXISTS(SELECT 1 FROM order_escrow WHERE order_id = $1 AND payment_method = 'paystack')
+    `, orderID).Scan(&exists); err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: idempotency check failed: %w", err)
+	}
+	if exists {
+		return uuid.Nil, nil
+	}
+
+	var totalAmount, cautionFee, platformFeePct float64
+	if err := tx.QueryRow(ctx, `
+        SELECT total_amount, caution_fee, platform_fee_pct FROM orders WHERE id = $1 AND status = 'pending'
+    `, orderID).Scan(&totalAmount, &cautionFee, &platformFeePct); err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: order not found or not pending: %w", err)
+	}
+
+	amount := float64(amountNaira)
+	commission := (amount - cautionFee) * platformFeePct / 100
+	netPayout := amount - cautionFee - commission
+
+	var escrowID uuid.UUID
+	if err := tx.QueryRow(ctx, `
+        INSERT INTO order_escrow (order_id, payer_id, payee_id, amount, commission, net_payout, status, payment_method)
+        VALUES ($1, $2, $3, $4, $5, $6, 'held', 'paystack')
+        RETURNING id
+    `, orderID, clientID, ownerID, amount, commission, netPayout).Scan(&escrowID); err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: failed to create escrow: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+        INSERT INTO transactions (user_id, transaction_type, reference, amount, description, status)
+        VALUES ($1, 'debit', $2, $3, $4, 'success')
+    `, clientID, reference, amount, fmt.Sprintf("Escrow hold for order %s via Paystack", orderID)); err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: failed to record transaction: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+        UPDATE orders
+        SET status = 'confirmed', payment_status = 'paid',
+            payment_method = 'paystack', payment_reference = $1,
+            confirmed_at = NOW(), updated_at = NOW()
+        WHERE id = $2
+    `, reference, orderID); err != nil {
+		return uuid.Nil, fmt.Errorf("order_payment: failed to confirm order: %w", err)
+	}
+
+	return orderID, nil
+}
+
+// fireOrderPaymentNotifications
+func fireOrderPaymentNotifications(db *pgxpool.Pool, orderID uuid.UUID) {
+	ctx := context.Background()
+
+	var confirmedOrder shortlet.Order
+	if err := db.QueryRow(ctx, `
+        SELECT id, property_id, client_id, owner_id,
+               check_in_date::TEXT, check_out_date::TEXT, num_nights,
+               num_adults, num_children,
+               price_per_night, caution_fee,
+               platform_fee_pct, subtotal, platform_fee_amount, total_amount,
+               status, payment_method, payment_status, payment_reference,
+               confirmed_at, checked_in_at, checked_out_at,
+               completed_at, cancelled_at, cancelled_by,
+               created_at, updated_at
+        FROM orders WHERE id = $1
+    `, orderID).Scan(
+		&confirmedOrder.ID, &confirmedOrder.PropertyID, &confirmedOrder.ClientID, &confirmedOrder.OwnerID,
+		&confirmedOrder.CheckInDate, &confirmedOrder.CheckOutDate, &confirmedOrder.NumNights,
+		&confirmedOrder.NumAdults, &confirmedOrder.NumChildren,
+		&confirmedOrder.PricePerNight, &confirmedOrder.CautionFee,
+		&confirmedOrder.PlatformFeePct, &confirmedOrder.Subtotal, &confirmedOrder.PlatformFeeAmount, &confirmedOrder.TotalAmount,
+		&confirmedOrder.Status, &confirmedOrder.PaymentMethod, &confirmedOrder.PaymentStatus, &confirmedOrder.PaymentReference,
+		&confirmedOrder.ConfirmedAt, &confirmedOrder.CheckedInAt, &confirmedOrder.CheckedOutAt,
+		&confirmedOrder.CompletedAt, &confirmedOrder.CancelledAt, &confirmedOrder.CancelledBy,
+		&confirmedOrder.CreatedAt, &confirmedOrder.UpdatedAt,
+	); err != nil {
+		utils.Logger.Errorf("fireOrderPaymentNotifications: failed to fetch order %s: %v", orderID, err)
+		return
+	}
+
+	summary := shortlet.OrderSummary{
+		PricePerNight:     confirmedOrder.PricePerNight,
+		NumNights:         confirmedOrder.NumNights,
+		Subtotal:          confirmedOrder.Subtotal,
+		CautionFee:        confirmedOrder.CautionFee,
+		PlatformFeePct:    confirmedOrder.PlatformFeePct,
+		PlatformFeeAmount: confirmedOrder.PlatformFeeAmount,
+		TotalAmount:       confirmedOrder.TotalAmount,
+	}
+
+	utils.Logger.Infof("fireOrderPaymentNotifications: firing for order %s", orderID)
+
+	handlers.SendOrderConfirmationNotifications(confirmedOrder, db)
+	handlers.SendOrderReceipt(confirmedOrder, db, summary, "paystack")
 }
 
 // ============================================================================
@@ -594,6 +715,9 @@ func handleTransferSuccess(ctx context.Context, db *pgxpool.Pool, transferRef, t
 			if err := notifications.SendPushNotification(token,
 				"Withdrawal Successful",
 				"Your withdrawal has been sent to your bank account.",
+				map[string]string{
+					"screen": "Wallet",
+				},
 			); err != nil {
 				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
 			}
@@ -602,6 +726,7 @@ func handleTransferSuccess(ctx context.Context, db *pgxpool.Pool, transferRef, t
 
 	utils.Logger.Info("Withdrawal marked successful",
 		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
+
 	return nil
 }
 
@@ -666,6 +791,9 @@ func handleTransferFailed(ctx context.Context, db *pgxpool.Pool, transferRef, tr
 			if err := notifications.SendPushNotification(token,
 				"Withdrawal Failed",
 				"Your withdrawal could not be processed and has been refunded to your wallet.",
+				map[string]string{
+					"screen": "Wallet",
+				},
 			); err != nil {
 				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
 			}
