@@ -20,6 +20,8 @@ func MainRouter() *http.ServeMux {
 
 	apiMux.Handle("/chat/", chatRouter())
 
+	apiMux.Handle("/shortlet-chat/", shortletChatRouter())
+
 	apiMux.Handle("/bookings/", bookingRouter())
 
 	apiMux.Handle("/wallets/", walletRouter())
@@ -33,6 +35,8 @@ func MainRouter() *http.ServeMux {
 	apiMux.Handle("/profile/", profileSettingsRouter())
 
 	apiMux.Handle("/shortlet/", shortletRouter())
+
+	apiMux.Handle("/dashboard/", dashboardRouter())
 
 	apiMux.Handle("/admin/", adminRouter())
 

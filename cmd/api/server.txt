@@ -13,11 +13,13 @@ import (
 	"leti_server/internal/api/handlers"
 	chatHandler "leti_server/internal/api/handlers/chat"
 	paymentwebhook "leti_server/internal/api/handlers/payment_webhook"
+	shortletchathandler "leti_server/internal/api/handlers/shortlet_chat"
 	mw "leti_server/internal/api/middlewares"
 	"leti_server/internal/api/routers"
 	chathub "leti_server/internal/chathub"
 	cronjobs "leti_server/internal/cron_jobs"
 	"leti_server/internal/repositories/sqlconnect"
+	"leti_server/internal/shortlethub"
 	"leti_server/pkg/cache"
 	"leti_server/pkg/config"
 	"leti_server/pkg/utils"
@@ -66,6 +68,11 @@ func main() {
 	go chatHub.Run()
 	chatHandler.Hub = chatHub
 	chathub.PushNotifier = handlers.SendPushToUser
+
+	shortletHub := shortlethub.New()
+	go shortletHub.Run()
+	shortletchathandler.Hub = shortletHub
+	shortlethub.PushNotifier = handlers.SendPushToUser
 
 	webhookCtx, webhookCancel := context.WithCancel(context.Background())
 

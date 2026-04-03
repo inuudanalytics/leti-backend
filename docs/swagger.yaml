@@ -919,6 +919,46 @@ definitions:
       status:
         type: string
     type: object
+  shortletchat.ShortletConversation:
+    properties:
+      chat_expires_at:
+        type: string
+      client_id:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      id:
+        type: string
+      order_id:
+        type: string
+      owner_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  shortletchat.ShortletMessage:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      is_read:
+        type: boolean
+      msg_type:
+        description: '"text" | "image"'
+        type: string
+      sender_id:
+        type: string
+      sender_role:
+        description: '"client" | "owner"'
+        type: string
+    type: object
 host: leti-backend.onrender.com
 info:
   contact: {}
@@ -3125,6 +3165,48 @@ paths:
       summary: Update a service option
       tags:
       - Artisan Services
+  /artisans/me/dashboard:
+    get:
+      description: 'Returns aggregated stats for the authenticated artisan''s dashboard:'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  avg_rating:
+                    format: float64
+                    type: number
+                  completed_jobs:
+                    type: integer
+                  incoming_requests:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Artisan dashboard summary cards
+      tags:
+      - Dashboard
   /auth/apple:
     post:
       consumes:
@@ -5994,6 +6076,51 @@ paths:
       summary: Preview booking cost breakdown
       tags:
       - Orders
+  /owners/me/dashboard:
+    get:
+      description: 'Returns aggregated stats for the authenticated owner''s dashboard:'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  avg_rating:
+                    format: float64
+                    type: number
+                  occupancy_rate:
+                    format: float64
+                    type: number
+                  occupied_shortlets:
+                    type: integer
+                  total_listings:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Owner dashboard summary cards
+      tags:
+      - Dashboard
   /owners/me/properties:
     get:
       description: Returns all properties (active, inactive, pending_review) belonging
@@ -8351,6 +8478,335 @@ paths:
       summary: Reply to a property review
       tags:
       - Reviews
+  /shortlet-chat/conversations:
+    get:
+      description: Returns a paginated list of shortlet conversations for the authenticated
+        user (client or owner), with last-message preview and unread count.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List shortlet conversations
+      tags:
+      - Shortlet Chat
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates (or retrieves) a conversation between the client and property owner for a confirmed order.
+        Only the client who owns the order can start the conversation.
+        The order must be in confirmed, checked_in, or completed status.
+      parameters:
+      - description: Order UUID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            order_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              conversation:
+                $ref: '#/definitions/shortletchat.ShortletConversation'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start or retrieve a shortlet conversation
+      tags:
+      - Shortlet Chat
+  /shortlet-chat/conversations/{id}:
+    delete:
+      description: Soft-deletes a shortlet conversation. Only the client who created
+        it can delete it.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a shortlet conversation
+      tags:
+      - Shortlet Chat
+  /shortlet-chat/conversations/{id}/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads 1–5 images to Cloudinary and inserts each as an image message.
+        Both participants receive a WebSocket push per image.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image file(s) — max 5
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              messages:
+                items:
+                  $ref: '#/definitions/shortletchat.ShortletMessage'
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send image message(s) in a shortlet conversation
+      tags:
+      - Shortlet Chat
+  /shortlet-chat/conversations/{id}/messages:
+    get:
+      description: Returns paginated messages for a shortlet conversation. Caller
+        must be a participant.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Max messages (default 50, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/shortletchat.ShortletMessage'
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get shortlet message history
+      tags:
+      - Shortlet Chat
+  /shortlet-chat/conversations/{id}/read:
+    patch:
+      description: Marks all unread messages sent by the other party as read and notifies
+        them via WebSocket.
+      parameters:
+      - description: Conversation UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark shortlet messages as read
+      tags:
+      - Shortlet Chat
+  /shortlet-chat/ws:
+    get:
+      description: |-
+        Upgrades the HTTP connection to WebSocket for shortlet (property) chat.
+        Participants are the client who booked and the property owner.
+
+        **Incoming frames (client → server):**
+        Send text: `{"type":"message","conversation_id":"<uuid>","content":"Hello!"}`
+        Mark read: `{"type":"read","conversation_id":"<uuid>"}`
+        Typing:    `{"type":"typing","conversation_id":"<uuid>"}`
+
+        **Outgoing frames (server → client):**
+        New message: `{"type":"message","payload":{...ShortletMessage}}`
+        Read receipt:`{"type":"read","payload":{"conversation_id":"...","reader_id":"..."}}`
+        Typing:      `{"type":"typing","payload":{"conversation_id":"...","sender_id":"..."}}`
+        Error:       `{"type":"error","payload":{"code":"...","message":"..."}}`
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Connect to the shortlet chat WebSocket
+      tags:
+      - Shortlet Chat
   /wallet/fund:
     post:
       consumes:

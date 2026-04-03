@@ -3414,6 +3414,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/artisans/me/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns aggregated stats for the authenticated artisan's dashboard:",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Artisan dashboard summary cards",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object",
+                                    "properties": {
+                                        "avg_rating": {
+                                            "type": "number",
+                                            "format": "float64"
+                                        },
+                                        "completed_jobs": {
+                                            "type": "integer"
+                                        },
+                                        "incoming_requests": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/apple": {
             "post": {
                 "description": "Authenticates a user with an Apple identity token. Creates a new account if none exists. Apple only sends email and name on the very first sign-in — the client should pass them in the request body as a fallback for subsequent logins.",
@@ -7795,6 +7862,77 @@ const docTemplate = `{
                 }
             }
         },
+        "/owners/me/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns aggregated stats for the authenticated owner's dashboard:",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Owner dashboard summary cards",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "object",
+                                    "properties": {
+                                        "avg_rating": {
+                                            "type": "number",
+                                            "format": "float64"
+                                        },
+                                        "occupancy_rate": {
+                                            "type": "number",
+                                            "format": "float64"
+                                        },
+                                        "occupied_shortlets": {
+                                            "type": "integer"
+                                        },
+                                        "total_listings": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/owners/me/properties": {
             "get": {
                 "security": [
@@ -11396,6 +11534,496 @@ const docTemplate = `{
                 }
             }
         },
+        "/shortlet-chat/conversations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of shortlet conversations for the authenticated user (client or owner), with last-message preview and unread count.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "List shortlet conversations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object"
+                                    }
+                                },
+                                "pagination": {
+                                    "type": "object"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates (or retrieves) a conversation between the client and property owner for a confirmed order.\nOnly the client who owns the order can start the conversation.\nThe order must be in confirmed, checked_in, or completed status.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Start or retrieve a shortlet conversation",
+                "parameters": [
+                    {
+                        "description": "Order UUID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "order_id": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "conversation": {
+                                    "$ref": "#/definitions/shortletchat.ShortletConversation"
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shortlet-chat/conversations/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-deletes a shortlet conversation. Only the client who created it can delete it.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Delete a shortlet conversation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shortlet-chat/conversations/{id}/images": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Uploads 1–5 images to Cloudinary and inserts each as an image message. Both participants receive a WebSocket push per image.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Send image message(s) in a shortlet conversation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file(s) — max 5",
+                        "name": "images",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "messages": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/shortletchat.ShortletMessage"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shortlet-chat/conversations/{id}/messages": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns paginated messages for a shortlet conversation. Caller must be a participant.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Get shortlet message history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Max messages (default 50, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/shortletchat.ShortletMessage"
+                                    }
+                                },
+                                "pagination": {
+                                    "type": "object"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shortlet-chat/conversations/{id}/read": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks all unread messages sent by the other party as read and notifies them via WebSocket.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Mark shortlet messages as read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shortlet-chat/ws": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upgrades the HTTP connection to WebSocket for shortlet (property) chat.\nParticipants are the client who booked and the property owner.\n\n**Incoming frames (client → server):**\nSend text: ` + "`" + `{\"type\":\"message\",\"conversation_id\":\"\u003cuuid\u003e\",\"content\":\"Hello!\"}` + "`" + `\nMark read: ` + "`" + `{\"type\":\"read\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\nTyping:    ` + "`" + `{\"type\":\"typing\",\"conversation_id\":\"\u003cuuid\u003e\"}` + "`" + `\n\n**Outgoing frames (server → client):**\nNew message: ` + "`" + `{\"type\":\"message\",\"payload\":{...ShortletMessage}}` + "`" + `\nRead receipt:` + "`" + `{\"type\":\"read\",\"payload\":{\"conversation_id\":\"...\",\"reader_id\":\"...\"}}` + "`" + `\nTyping:      ` + "`" + `{\"type\":\"typing\",\"payload\":{\"conversation_id\":\"...\",\"sender_id\":\"...\"}}` + "`" + `\nError:       ` + "`" + `{\"type\":\"error\",\"payload\":{\"code\":\"...\",\"message\":\"...\"}}` + "`" + `",
+                "tags": [
+                    "Shortlet Chat"
+                ],
+                "summary": "Connect to the shortlet chat WebSocket",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/wallet/fund": {
             "post": {
                 "security": [
@@ -13092,6 +13720,66 @@ const docTemplate = `{
                     }
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "shortletchat.ShortletConversation": {
+            "type": "object",
+            "properties": {
+                "chat_expires_at": {
+                    "type": "string"
+                },
+                "client_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "order_id": {
+                    "type": "string"
+                },
+                "owner_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "shortletchat.ShortletMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "msg_type": {
+                    "description": "\"text\" | \"image\"",
+                    "type": "string"
+                },
+                "sender_id": {
+                    "type": "string"
+                },
+                "sender_role": {
+                    "description": "\"client\" | \"owner\"",
                     "type": "string"
                 }
             }
