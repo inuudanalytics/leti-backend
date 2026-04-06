@@ -19,6 +19,7 @@ CREATE TABLE users (
     phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
+    username_changed_at TIMESTAMPTZ DEFAULT NULL,
     recovery_email VARCHAR(255),
     recovery_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     status VARCHAR(50) NOT NULL DEFAULT 'approved' CHECK (status IN ('rejected','pending','suspended','approved','probation')),
@@ -32,7 +33,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_phone_number ON users(phone_number);
 CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_username_ci ON users(lower(username));
 CREATE INDEX idx_users_active_role ON users(active_role);
 CREATE INDEX idx_users_artisan_online ON users(is_online) WHERE active_role = 'artisan';
 CREATE INDEX idx_users_recovery_email ON users(recovery_email) WHERE recovery_email IS NOT NULL;

@@ -3478,6 +3478,193 @@
                 }
             }
         },
+        "/artisans/online": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of artisans whose online status is TRUE.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Discovery"
+                ],
+                "summary": "List online artisans",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by category UUID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Partial match on service name",
+                        "name": "service_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Partial match on artisan username",
+                        "name": "username",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Sort by top rated (min rating 4.0)",
+                        "name": "top_rated",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Client latitude for nearby search",
+                        "name": "lat",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Client longitude for nearby search",
+                        "name": "lng",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Radius in km (default 10)",
+                        "name": "radius_km",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page (default 20, max 50)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/booking.ArtisanListItem"
+                                    }
+                                },
+                                "limit": {
+                                    "type": "integer"
+                                },
+                                "page": {
+                                    "type": "integer"
+                                },
+                                "total": {
+                                    "type": "integer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/artisans/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the full public profile of a single artisan by their user UUID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Artisan Discovery"
+                ],
+                "summary": "Get artisan profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Artisan user UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/booking.ArtisanProfileDetail"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/apple": {
             "post": {
                 "description": "Authenticates a user with an Apple identity token. Creates a new account if none exists. Apple only sends email and name on the very first sign-in — the client should pass them in the request body as a fallback for subsequent logins.",
@@ -4716,7 +4903,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Updates the authenticated user's editable profile fields: bio.",
+                "description": "Updates the authenticated user's editable profile fields: bio, username. Username can only be changed once every 30 days.",
                 "consumes": [
                     "application/json"
                 ],
@@ -4738,6 +4925,9 @@
                             "properties": {
                                 "bio": {
                                     "type": "string"
+                                },
+                                "username": {
+                                    "type": "string"
                                 }
                             }
                         }
@@ -4756,6 +4946,9 @@
                                             "type": "string"
                                         },
                                         "id": {
+                                            "type": "string"
+                                        },
+                                        "username": {
                                             "type": "string"
                                         }
                                     }
@@ -12798,6 +12991,119 @@
                 }
             }
         },
+        "booking.ArtisanListItem": {
+            "type": "object",
+            "properties": {
+                "avatar": {},
+                "avg_rating": {
+                    "type": "number"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.CategorySummary"
+                    }
+                },
+                "distance_km": {
+                    "type": "number"
+                },
+                "is_online": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "$ref": "#/definitions/booking.LocationPoint"
+                },
+                "review_count": {
+                    "type": "integer"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.ArtisanServiceSummary"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "booking.ArtisanProfileDetail": {
+            "type": "object",
+            "properties": {
+                "avatar": {},
+                "avg_rating": {
+                    "type": "number"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.CategorySummary"
+                    }
+                },
+                "is_online": {
+                    "type": "boolean"
+                },
+                "is_verified": {
+                    "type": "boolean"
+                },
+                "member_for_days": {
+                    "type": "integer"
+                },
+                "member_since": {
+                    "type": "string"
+                },
+                "portfolio": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.PortfolioImage"
+                    }
+                },
+                "review_count": {
+                    "type": "integer"
+                },
+                "reviews": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.ReviewItem"
+                    }
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.ServiceDetail"
+                    }
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "booking.ArtisanServiceSummary": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                }
+            }
+        },
         "booking.Availability": {
             "type": "object",
             "properties": {
@@ -13006,6 +13312,129 @@
                     "type": "number"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "booking.CategorySummary": {
+            "type": "object",
+            "properties": {
+                "category_id": {
+                    "type": "string"
+                },
+                "category_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "booking.LocationPoint": {
+            "type": "object",
+            "properties": {
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                }
+            }
+        },
+        "booking.PortfolioImage": {
+            "type": "object",
+            "properties": {
+                "caption": {
+                    "type": "string"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "image_id": {
+                    "type": "string"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "booking.ReviewItem": {
+            "type": "object",
+            "properties": {
+                "avatar": {},
+                "client_id": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "rating": {
+                    "type": "integer"
+                },
+                "review_id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "booking.ServiceDetail": {
+            "type": "object",
+            "properties": {
+                "base_price": {
+                    "type": "number"
+                },
+                "category_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "service_name": {
+                    "type": "string"
+                },
+                "variations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.ServiceVariationType"
+                    }
+                }
+            }
+        },
+        "booking.ServiceVariationOption": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "option_id": {
+                    "type": "string"
+                },
+                "price_modifier": {
+                    "type": "number"
+                }
+            }
+        },
+        "booking.ServiceVariationType": {
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/booking.ServiceVariationOption"
+                    }
+                },
+                "variation_type_id": {
+                    "type": "string"
+                },
+                "variation_type_label": {
                     "type": "string"
                 }
             }

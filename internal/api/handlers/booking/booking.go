@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"leti_server/internal/api/handlers"
@@ -15,6 +18,98 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+type ArtisanServiceSummary struct {
+	ServiceID   uuid.UUID `json:"service_id"`
+	ServiceName string    `json:"service_name"`
+	BasePrice   float64   `json:"base_price"`
+	CategoryID  uuid.UUID `json:"category_id"`
+}
+
+type ArtisanListItem struct {
+	UserID      uuid.UUID               `json:"user_id"`
+	Username    string                  `json:"username"`
+	Avatar      interface{}             `json:"avatar"`
+	IsOnline    bool                    `json:"is_online"`
+	AvgRating   float64                 `json:"avg_rating"`
+	ReviewCount int                     `json:"review_count"`
+	Categories  []CategorySummary       `json:"categories"`
+	Services    []ArtisanServiceSummary `json:"services"`
+	Location    *LocationPoint          `json:"location,omitempty"`
+	DistanceKm  *float64                `json:"distance_km,omitempty"`
+}
+
+type CategorySummary struct {
+	CategoryID   uuid.UUID `json:"category_id"`
+	CategoryName string    `json:"category_name"`
+}
+
+type LocationPoint struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+}
+
+// ReviewItem represents a single review with reviewer info.
+type ReviewItem struct {
+	ReviewID  uuid.UUID   `json:"review_id"`
+	ClientID  uuid.UUID   `json:"client_id"`
+	Username  string      `json:"username"`
+	Avatar    interface{} `json:"avatar"`
+	Rating    int         `json:"rating"`
+	Comment   *string     `json:"comment,omitempty"`
+	CreatedAt time.Time   `json:"created_at"`
+}
+
+// ServiceVariationOption is a single option within a variation type.
+type ServiceVariationOption struct {
+	OptionID      uuid.UUID `json:"option_id"`
+	Label         string    `json:"label"`
+	PriceModifier float64   `json:"price_modifier"`
+}
+
+// ServiceVariationType groups options for one variation axis.
+type ServiceVariationType struct {
+	VariationTypeID    uuid.UUID                `json:"variation_type_id"`
+	VariationTypeLabel string                   `json:"variation_type_label"`
+	Options            []ServiceVariationOption `json:"options"`
+}
+
+// ServiceDetail is a full service with its variation tree.
+type ServiceDetail struct {
+	ServiceID   uuid.UUID              `json:"service_id"`
+	ServiceName string                 `json:"service_name"`
+	Description *string                `json:"description,omitempty"`
+	BasePrice   float64                `json:"base_price"`
+	CategoryID  uuid.UUID              `json:"category_id"`
+	Variations  []ServiceVariationType `json:"variations"`
+}
+
+// PortfolioImage is one portfolio entry.
+type PortfolioImage struct {
+	ImageID    uuid.UUID `json:"image_id"`
+	ImageURL   string    `json:"image_url"`
+	Caption    *string   `json:"caption,omitempty"`
+	CategoryID uuid.UUID `json:"category_id"`
+	SortOrder  int       `json:"sort_order"`
+}
+
+// ArtisanProfileDetail is the full single-artisan response.
+type ArtisanProfileDetail struct {
+	UserID        uuid.UUID         `json:"user_id"`
+	Username      string            `json:"username"`
+	Avatar        interface{}       `json:"avatar"`
+	Bio           *string           `json:"bio,omitempty"`
+	IsOnline      bool              `json:"is_online"`
+	IsVerified    bool              `json:"is_verified"`
+	AvgRating     float64           `json:"avg_rating"`
+	ReviewCount   int               `json:"review_count"`
+	MemberSince   time.Time         `json:"member_since"`
+	MemberForDays int               `json:"member_for_days"`
+	Categories    []CategorySummary `json:"categories"`
+	Portfolio     []PortfolioImage  `json:"portfolio"`
+	Services      []ServiceDetail   `json:"services"`
+	Reviews       []ReviewItem      `json:"reviews"`
+}
 
 // ============================================================================
 // POST /bookings
@@ -289,16 +384,16 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		bgCtx := context.Background()
 
-		var artisanEmail, artisanPhone, artisanFirstName string
+		var artisanEmail, artisanPhone, artisanUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
+			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
 			artisanID,
-		).Scan(&artisanEmail, &artisanPhone, &artisanFirstName)
+		).Scan(&artisanEmail, &artisanPhone, &artisanUsername)
 
-		var clientFirstName string
+		var clientUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, clientID,
-		).Scan(&clientFirstName)
+			`SELECT username FROM users WHERE id = $1`, clientID,
+		).Scan(&clientUsername)
 
 		// In-app notification
 		utils.CreateNotification(bgCtx, artisanID,
@@ -312,8 +407,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		if artisanEmail != "" {
 			utils.SendBookingRequestEmail(
 				artisanEmail,
-				artisanFirstName,
-				clientFirstName,
+				artisanUsername,
+				clientUsername,
 				serviceName,
 				bk.BookingDate,
 				bk.StartTime,
@@ -324,8 +419,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		if artisanPhone != "" {
 			utils.SendBookingRequestSMS(
 				artisanPhone,
-				artisanFirstName,
-				clientFirstName,
+				artisanUsername,
+				clientUsername,
 				serviceName,
 				bk.BookingDate,
 				bk.StartTime,
@@ -425,16 +520,17 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		bgCtx := context.Background()
 
-		var clientEmail, clientPhone, clientFirstName string
+		var clientEmail, clientPhone, clientUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
+			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
 			bk.ClientID,
-		).Scan(&clientEmail, &clientPhone, &clientFirstName)
+		).Scan(&clientEmail, &clientPhone, &clientUsername)
 
-		var artisanFirstName, serviceName string
+		var artisanUsername, serviceName string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, bk.ArtisanID,
-		).Scan(&artisanFirstName)
+			`SELECT username FROM users WHERE id = $1`, bk.ArtisanID,
+		).Scan(&artisanUsername)
+
 		if bk.ServiceID != nil {
 			_ = sqlconnect.DB.QueryRow(bgCtx,
 				`SELECT name FROM artisan_services WHERE id = $1`, *bk.ServiceID,
@@ -459,8 +555,8 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		if clientEmail != "" {
 			utils.SendBookingConfirmedEmail(
 				clientEmail,
-				clientFirstName,
-				artisanFirstName,
+				clientUsername,
+				artisanUsername,
 				serviceName,
 				bk.BookingDate,
 				bk.StartTime,
@@ -472,8 +568,8 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		if clientPhone != "" {
 			utils.SendBookingConfirmedSMS(
 				clientPhone,
-				clientFirstName,
-				artisanFirstName,
+				clientUsername,
+				artisanUsername,
 				serviceName,
 				bk.BookingDate,
 			)
@@ -557,16 +653,16 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		bgCtx := context.Background()
 
-		var clientEmail, clientPhone, clientFirstName string
+		var clientEmail, clientPhone, clientUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
+			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
 			clientID,
-		).Scan(&clientEmail, &clientPhone, &clientFirstName)
+		).Scan(&clientEmail, &clientPhone, &clientUsername)
 
-		var artisanFirstName string
+		var artisanUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, artisanID,
-		).Scan(&artisanFirstName)
+			`SELECT username FROM users WHERE id = $1`, artisanID,
+		).Scan(&artisanUsername)
 
 		if serviceID != nil {
 			_ = sqlconnect.DB.QueryRow(bgCtx,
@@ -589,8 +685,8 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 		if clientEmail != "" {
 			utils.SendBookingDeclinedEmail(
 				clientEmail,
-				clientFirstName,
-				artisanFirstName,
+				clientUsername,
+				artisanUsername,
 				serviceName,
 				bookingDate,
 			)
@@ -600,8 +696,8 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 		if clientPhone != "" {
 			utils.SendBookingDeclinedSMS(
 				clientPhone,
-				clientFirstName,
-				artisanFirstName,
+				clientUsername,
+				artisanUsername,
 				serviceName,
 			)
 		}
@@ -717,16 +813,16 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		bgCtx := context.Background()
 
 		// Fetch both parties
-		var notifyEmail, notifyPhone, notifyFirstName string
+		var notifyEmail, notifyPhone, notifyUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
+			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
 			notifyID,
-		).Scan(&notifyEmail, &notifyPhone, &notifyFirstName)
+		).Scan(&notifyEmail, &notifyPhone, &notifyUsername)
 
-		var cancellerFirstName string
+		var cancellerUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, userID,
-		).Scan(&cancellerFirstName)
+			`SELECT username FROM users WHERE id = $1`, userID,
+		).Scan(&cancellerUsername)
 
 		var serviceName string
 		if serviceID != nil {
@@ -755,8 +851,8 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		if notifyEmail != "" {
 			utils.SendBookingCancelledEmail(
 				notifyEmail,
-				notifyFirstName,
-				cancellerFirstName,
+				notifyUsername,
+				cancellerUsername,
 				serviceName,
 				bookingDate,
 				cancelledByRole,
@@ -767,8 +863,8 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		if notifyPhone != "" {
 			utils.SendBookingCancelledSMS(
 				notifyPhone,
-				notifyFirstName,
-				cancellerFirstName,
+				notifyUsername,
+				cancellerUsername,
 				serviceName,
 				bookingDate,
 				cancelledByRole,
@@ -975,16 +1071,16 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 	go func(fullyComplete bool, role string, bk booking.Booking, artisanCompletedAt *time.Time) {
 		bgCtx := context.Background()
 
-		var artisanFirstName, serviceName string
-		var clientEmail, clientPhone, clientFirstName string
+		var artisanUsername, serviceName string
+		_ = sqlconnect.DB.QueryRow(bgCtx,
+			`SELECT username FROM users WHERE id = $1`, bk.ArtisanID,
+		).Scan(&artisanUsername)
 
+		var clientEmail, clientPhone, clientUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT first_name FROM users WHERE id = $1`, bk.ArtisanID,
-		).Scan(&artisanFirstName)
-		_ = sqlconnect.DB.QueryRow(bgCtx,
-			`SELECT COALESCE(email,''), COALESCE(phone_number,''), first_name FROM users WHERE id = $1`,
+			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
 			bk.ClientID,
-		).Scan(&clientEmail, &clientPhone, &clientFirstName)
+		).Scan(&clientEmail, &clientPhone, &clientUsername)
 
 		if bk.ServiceID != nil {
 			_ = sqlconnect.DB.QueryRow(bgCtx,
@@ -1018,10 +1114,10 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 				})
 
 			if clientEmail != "" {
-				utils.SendBookingCompletedEmail(clientEmail, clientFirstName, artisanFirstName, serviceName, bk.BookingDate)
+				utils.SendBookingCompletedEmail(clientEmail, clientUsername, artisanUsername, serviceName, bk.BookingDate)
 			}
 			if clientPhone != "" {
-				utils.SendBookingCompletedSMS(clientPhone, clientFirstName, artisanFirstName, serviceName)
+				utils.SendBookingCompletedSMS(clientPhone, clientUsername, artisanUsername, serviceName)
 			}
 
 		} else {
@@ -1033,7 +1129,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 			)
 			handlers.SendPushToUser(bk.ClientID,
 				"Confirm Booking Completion",
-				fmt.Sprintf("%s has marked your booking as complete. Tap to confirm.", artisanFirstName),
+				fmt.Sprintf("%s has marked your booking as complete. Tap to confirm.", artisanUsername),
 				map[string]string{
 					"screen":     "BookingDetails",
 					"booking_id": bk.ID.String(),
@@ -1240,4 +1336,632 @@ func GetBooking(w http.ResponseWriter, r *http.Request) {
 		"status": "success",
 		"data":   bk,
 	})
+}
+
+// ============================================================================
+// GET /artisans/online
+// ============================================================================
+
+// GetOnlineArtisans godoc
+// @Summary      List online artisans
+// @Description  Returns a paginated list of artisans whose online status is TRUE.
+//
+// Supports the following optional query filters:
+//
+//   - category_id (uuid)      – filter by a specific job category
+//   - service_name (string)   – partial match on artisan service name (case-insensitive)
+//   - username (string)       – partial match on artisan username (case-insensitive)
+//   - top_rated (bool)        – if true, sort by avg_rating DESC; minimum 4.0 rating
+//   - lat (float64)           – client latitude for nearby filter
+//   - lng (float64)           – client longitude for nearby filter
+//   - radius_km (float64)     – radius in km around lat/lng (default 10)
+//   - page (int)              – page number, default 1
+//   - limit (int)             – results per page, default 20, max 50
+//
+// @Tags         Artisan Discovery
+// @Produce      json
+// @Param        category_id   query  string  false  "Filter by category UUID"
+// @Param        service_name  query  string  false  "Partial match on service name"
+// @Param        username      query  string  false  "Partial match on artisan username"
+// @Param        top_rated     query  bool    false  "Sort by top rated (min rating 4.0)"
+// @Param        lat           query  number  false  "Client latitude for nearby search"
+// @Param        lng           query  number  false  "Client longitude for nearby search"
+// @Param        radius_km     query  number  false  "Radius in km (default 10)"
+// @Param        page          query  int     false  "Page number (default 1)"
+// @Param        limit         query  int     false  "Results per page (default 20, max 50)"
+// @Success      200  {object}  object{data=[]ArtisanListItem,total=int,page=int,limit=int}
+// @Failure      400  {object}  object{error=string}
+// @Failure      500  {object}  object{error=string}
+// @Router       /artisans/online [get]
+// @Security     BearerAuth
+func GetOnlineArtisans(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	q := r.URL.Query()
+
+	page := 1
+	limit := 20
+	if v := q.Get("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			page = n
+		}
+	}
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 50 {
+				n = 50
+			}
+			limit = n
+		}
+	}
+	offset := (page - 1) * limit
+
+	categoryIDStr := strings.TrimSpace(q.Get("category_id"))
+	serviceName := strings.TrimSpace(q.Get("service_name"))
+	username := strings.TrimSpace(q.Get("username"))
+	topRated := q.Get("top_rated") == "true" || q.Get("top_rated") == "1"
+
+	var nearbyLat, nearbyLng *float64
+	var radiusKm float64 = 10
+	if latStr := q.Get("lat"); latStr != "" {
+		if v, err := strconv.ParseFloat(latStr, 64); err == nil {
+			nearbyLat = &v
+		}
+	}
+	if lngStr := q.Get("lng"); lngStr != "" {
+		if v, err := strconv.ParseFloat(lngStr, 64); err == nil {
+			nearbyLng = &v
+		}
+	}
+	if rStr := q.Get("radius_km"); rStr != "" {
+		if v, err := strconv.ParseFloat(rStr, 64); err == nil && v > 0 {
+			radiusKm = v
+		}
+	}
+
+	args := []interface{}{}
+	argIdx := 1
+
+	conditions := []string{"u.is_online = TRUE", "u.deleted_at IS NULL", "u.status = 'approved'"}
+
+	if categoryIDStr != "" {
+		if _, err := uuid.Parse(categoryIDStr); err != nil {
+			utils.WriteError(w, "invalid category_id", http.StatusBadRequest)
+			return
+		}
+		conditions = append(conditions,
+			fmt.Sprintf(`EXISTS (
+				SELECT 1 FROM artisan_categories ac
+				WHERE ac.artisan_id = u.id AND ac.category_id = $%d
+			)`, argIdx))
+		args = append(args, categoryIDStr)
+		argIdx++
+	}
+
+	if serviceName != "" {
+		conditions = append(conditions,
+			fmt.Sprintf(`EXISTS (
+				SELECT 1 FROM artisan_services asv
+				WHERE asv.artisan_id = u.id AND asv.is_active = TRUE
+				  AND LOWER(asv.name) LIKE LOWER($%d)
+			)`, argIdx))
+		args = append(args, "%"+serviceName+"%")
+		argIdx++
+	}
+
+	if username != "" {
+		conditions = append(conditions,
+			fmt.Sprintf(`LOWER(u.username) LIKE LOWER($%d)`, argIdx))
+		args = append(args, "%"+username+"%")
+		argIdx++
+	}
+
+	if topRated {
+		conditions = append(conditions, `(
+			SELECT COALESCE(ROUND(AVG(ar.rating)::NUMERIC, 2), 0)
+			FROM artisan_reviews ar WHERE ar.artisan_id = u.id
+		) >= 4.0`)
+	}
+
+	var distanceExpr string
+	if nearbyLat != nil && nearbyLng != nil {
+		conditions = append(conditions,
+			fmt.Sprintf(`EXISTS (
+				SELECT 1 FROM artisan_address aa
+				WHERE aa.artisan_id = u.id
+				  AND ST_DWithin(
+				      aa.location::geography,
+				      ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography,
+				      $%d
+				  )
+			)`, argIdx, argIdx+1, argIdx+2))
+		args = append(args, *nearbyLng, *nearbyLat, radiusKm*1000)
+		argIdx += 3
+
+		distanceExpr = fmt.Sprintf(`(
+			SELECT ROUND(
+				ST_Distance(
+					aa2.location::geography,
+					ST_SetSRID(ST_MakePoint($%d, $%d), 4326)::geography
+				) / 1000, 2
+			)
+			FROM artisan_address aa2
+			WHERE aa2.artisan_id = u.id
+			ORDER BY aa2.is_primary DESC
+			LIMIT 1
+		) AS distance_km`, argIdx, argIdx+1)
+		args = append(args, *nearbyLng, *nearbyLat)
+		argIdx += 2
+	} else {
+		distanceExpr = "NULL AS distance_km"
+	}
+
+	whereClause := "WHERE " + strings.Join(conditions, " AND ")
+
+	orderBy := "ORDER BY u.is_online DESC"
+	if topRated {
+		orderBy = `ORDER BY (
+			SELECT COALESCE(ROUND(AVG(ar.rating)::NUMERIC, 2), 0)
+			FROM artisan_reviews ar WHERE ar.artisan_id = u.id
+		) DESC NULLS LAST`
+	} else if nearbyLat != nil && nearbyLng != nil {
+		orderBy = "ORDER BY distance_km ASC NULLS LAST"
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	countSQL := fmt.Sprintf(`
+		SELECT COUNT(DISTINCT u.id)
+		FROM users u
+		%s
+	`, whereClause)
+
+	var total int
+	if err := db.QueryRow(ctx, countSQL, args...).Scan(&total); err != nil {
+		utils.Logger.Errorf("failed to count artisans: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	paginationArgs := append(args, limit, offset)
+	limitIdx := argIdx
+	offsetIdx := argIdx + 1
+
+	mainSQL := fmt.Sprintf(`
+		SELECT
+			u.id,
+			u.username,
+			u.avatar,
+			u.is_online,
+			COALESCE(ROUND(AVG(ar.rating)::NUMERIC, 2), 0.00) AS avg_rating,
+			COUNT(ar.id)                                       AS review_count,
+			%s
+		FROM users u
+		LEFT JOIN artisan_reviews ar ON ar.artisan_id = u.id
+		%s
+		GROUP BY u.id
+		%s
+		LIMIT $%d OFFSET $%d
+	`, distanceExpr, whereClause, orderBy, limitIdx, offsetIdx)
+
+	rows, err := db.Query(ctx, mainSQL, paginationArgs...)
+	if err != nil {
+		utils.Logger.Errorf("failed to query artisans: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type rawRow struct {
+		UserID      uuid.UUID
+		Username    string
+		Avatar      interface{}
+		IsOnline    bool
+		AvgRating   float64
+		ReviewCount int
+		DistanceKm  *float64
+	}
+
+	var rawRows []rawRow
+	var artisanIDs []uuid.UUID
+
+	for rows.Next() {
+		var rr rawRow
+		if err := rows.Scan(
+			&rr.UserID, &rr.Username, &rr.Avatar,
+			&rr.IsOnline, &rr.AvgRating, &rr.ReviewCount,
+			&rr.DistanceKm,
+		); err != nil {
+			utils.Logger.Errorf("scan artisan row: %v", err)
+			continue
+		}
+		rawRows = append(rawRows, rr)
+		artisanIDs = append(artisanIDs, rr.UserID)
+	}
+	rows.Close()
+
+	if len(artisanIDs) == 0 {
+		utils.WriteJSON(w, map[string]interface{}{
+			"data":  []interface{}{},
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		})
+		return
+	}
+
+	catMap := map[uuid.UUID][]CategorySummary{}
+	catRows, err := db.Query(ctx, `
+		SELECT ac.artisan_id, jc.id, jc.name
+		FROM artisan_categories ac
+		JOIN job_categories jc ON jc.id = ac.category_id
+		WHERE ac.artisan_id = ANY($1)
+	`, artisanIDs)
+	if err == nil {
+		defer catRows.Close()
+		for catRows.Next() {
+			var aid uuid.UUID
+			var cs CategorySummary
+			if e := catRows.Scan(&aid, &cs.CategoryID, &cs.CategoryName); e == nil {
+				catMap[aid] = append(catMap[aid], cs)
+			}
+		}
+	}
+
+	svcMap := map[uuid.UUID][]ArtisanServiceSummary{}
+	svcRows, err := db.Query(ctx, `
+		SELECT artisan_id, id, name, base_price, category_id
+		FROM artisan_services
+		WHERE artisan_id = ANY($1) AND is_active = TRUE
+	`, artisanIDs)
+	if err == nil {
+		defer svcRows.Close()
+		for svcRows.Next() {
+			var aid uuid.UUID
+			var s ArtisanServiceSummary
+			if e := svcRows.Scan(&aid, &s.ServiceID, &s.ServiceName, &s.BasePrice, &s.CategoryID); e == nil {
+				svcMap[aid] = append(svcMap[aid], s)
+			}
+		}
+	}
+
+	locMap := map[uuid.UUID]*LocationPoint{}
+	locRows, err := db.Query(ctx, `
+		SELECT DISTINCT ON (artisan_id)
+			artisan_id,
+			ST_Y(location::geometry) AS lat,
+			ST_X(location::geometry) AS lng
+		FROM artisan_address
+		WHERE artisan_id = ANY($1) AND location IS NOT NULL
+		ORDER BY artisan_id, is_primary DESC
+	`, artisanIDs)
+	if err == nil {
+		defer locRows.Close()
+		for locRows.Next() {
+			var aid uuid.UUID
+			var lp LocationPoint
+			if e := locRows.Scan(&aid, &lp.Latitude, &lp.Longitude); e == nil {
+				locMap[aid] = &lp
+			}
+		}
+	}
+
+	result := make([]ArtisanListItem, 0, len(rawRows))
+	for _, rr := range rawRows {
+		item := ArtisanListItem{
+			UserID:      rr.UserID,
+			Username:    rr.Username,
+			Avatar:      rr.Avatar,
+			IsOnline:    rr.IsOnline,
+			AvgRating:   rr.AvgRating,
+			ReviewCount: rr.ReviewCount,
+			Categories:  catMap[rr.UserID],
+			Services:    svcMap[rr.UserID],
+			Location:    locMap[rr.UserID],
+			DistanceKm:  rr.DistanceKm,
+		}
+		if item.Categories == nil {
+			item.Categories = []CategorySummary{}
+		}
+		if item.Services == nil {
+			item.Services = []ArtisanServiceSummary{}
+		}
+		result = append(result, item)
+	}
+
+	utils.WriteJSON(w, map[string]interface{}{
+		"data":  result,
+		"total": total,
+		"page":  page,
+		"limit": limit,
+	})
+}
+
+// ============================================================================
+// GET /artisans/{id}
+// ============================================================================
+
+// GetArtisanProfile godoc
+// @Summary      Get artisan profile
+// @Description  Returns the full public profile of a single artisan by their user UUID.
+//
+// The response includes:
+//   - avatar, username, bio, online status, verification status
+//   - total avg rating and number of reviews
+//   - how long they have been on the platform (member_since + member_for_days)
+//   - portfolio images grouped by category
+//   - all services with their variation types and option price modifiers
+//   - all reviews (with reviewer username + avatar)
+//
+// Note: The artisan does NOT have to be online to be viewed via this endpoint.
+// Use GET /artisans/online to list only online artisans.
+//
+// @Tags         Artisan Discovery
+// @Produce      json
+// @Param        id  path  string  true  "Artisan user UUID"
+// @Success      200  {object}  ArtisanProfileDetail
+// @Failure      400  {object}  object{error=string}
+// @Failure      404  {object}  object{error=string}
+// @Failure      500  {object}  object{error=string}
+// @Router       /artisans/{id} [get]
+// @Security     BearerAuth
+func GetArtisanProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	artisanID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		utils.WriteError(w, "invalid artisan id", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	type coreUser struct {
+		UserID        uuid.UUID
+		Username      string
+		Avatar        interface{}
+		Bio           *string
+		IsOnline      bool
+		Status        string
+		CreatedAt     time.Time
+		PhoneVerified bool
+		EmailVerified bool
+	}
+	var cu coreUser
+
+	err = db.QueryRow(ctx, `
+		SELECT id, username, avatar, bio, COALESCE(is_online, FALSE),
+		       status, user_created_at, phone_verified, email_verified
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+	`, artisanID).Scan(
+		&cu.UserID, &cu.Username, &cu.Avatar, &cu.Bio, &cu.IsOnline,
+		&cu.Status, &cu.CreatedAt, &cu.PhoneVerified, &cu.EmailVerified,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			utils.WriteError(w, "artisan not found", http.StatusNotFound)
+			return
+		}
+		utils.Logger.Errorf("failed to fetch artisan user: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var hasArtisanRole bool
+	_ = db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM user_roles WHERE user_id = $1 AND role = 'artisan'
+		)
+	`, artisanID).Scan(&hasArtisanRole)
+	if !hasArtisanRole {
+		utils.WriteError(w, "artisan not found", http.StatusNotFound)
+		return
+	}
+
+	isVerified := cu.PhoneVerified || cu.EmailVerified
+	memberForDays := int(math.Floor(time.Since(cu.CreatedAt).Hours() / 24))
+
+	var avgRating float64
+	var reviewCount int
+	_ = db.QueryRow(ctx, `
+		SELECT COALESCE(ROUND(AVG(rating)::NUMERIC, 2), 0.00), COUNT(*)
+		FROM artisan_reviews
+		WHERE artisan_id = $1
+	`, artisanID).Scan(&avgRating, &reviewCount)
+
+	categories := []CategorySummary{}
+	catRows, err := db.Query(ctx, `
+		SELECT jc.id, jc.name
+		FROM artisan_categories ac
+		JOIN job_categories jc ON jc.id = ac.category_id
+		WHERE ac.artisan_id = $1
+	`, artisanID)
+	if err == nil {
+		defer catRows.Close()
+		for catRows.Next() {
+			var cs CategorySummary
+			if e := catRows.Scan(&cs.CategoryID, &cs.CategoryName); e == nil {
+				categories = append(categories, cs)
+			}
+		}
+	}
+
+	portfolio := []PortfolioImage{}
+	portRows, err := db.Query(ctx, `
+		SELECT id, image_url, caption, category_id, sort_order
+		FROM artisan_portfolio_images
+		WHERE artisan_id = $1
+		ORDER BY category_id, sort_order ASC
+	`, artisanID)
+	if err == nil {
+		defer portRows.Close()
+		for portRows.Next() {
+			var pi PortfolioImage
+			if e := portRows.Scan(&pi.ImageID, &pi.ImageURL, &pi.Caption, &pi.CategoryID, &pi.SortOrder); e == nil {
+				portfolio = append(portfolio, pi)
+			}
+		}
+	}
+
+	type rawService struct {
+		ServiceID   uuid.UUID
+		ServiceName string
+		Description *string
+		BasePrice   float64
+		CategoryID  uuid.UUID
+	}
+	var rawServices []rawService
+	var serviceIDs []uuid.UUID
+
+	svcRows, err := db.Query(ctx, `
+		SELECT id, name, description, base_price, category_id
+		FROM artisan_services
+		WHERE artisan_id = $1 AND is_active = TRUE
+		ORDER BY created_at ASC
+	`, artisanID)
+	if err == nil {
+		defer svcRows.Close()
+		for svcRows.Next() {
+			var rs rawService
+			if e := svcRows.Scan(&rs.ServiceID, &rs.ServiceName, &rs.Description, &rs.BasePrice, &rs.CategoryID); e == nil {
+				rawServices = append(rawServices, rs)
+				serviceIDs = append(serviceIDs, rs.ServiceID)
+			}
+		}
+	}
+
+	type optRow struct {
+		ServiceID          uuid.UUID
+		VariationTypeID    uuid.UUID
+		VariationTypeLabel string
+		OptionID           uuid.UUID
+		OptionLabel        string
+		PriceModifier      float64
+	}
+	optMap := map[uuid.UUID]map[uuid.UUID]*ServiceVariationType{}
+
+	if len(serviceIDs) > 0 {
+		optRows, err := db.Query(ctx, `
+			SELECT
+				aso.service_id,
+				svt.id            AS variation_type_id,
+				svt.label         AS variation_type_label,
+				aso.id            AS option_id,
+				aso.label         AS option_label,
+				aso.price_modifier
+			FROM artisan_service_options aso
+			JOIN service_variation_types svt ON svt.id = aso.variation_type_id
+			WHERE aso.service_id = ANY($1)
+			ORDER BY svt.id, aso.label
+		`, serviceIDs)
+		if err == nil {
+			defer optRows.Close()
+			for optRows.Next() {
+				var o optRow
+				if e := optRows.Scan(
+					&o.ServiceID, &o.VariationTypeID, &o.VariationTypeLabel,
+					&o.OptionID, &o.OptionLabel, &o.PriceModifier,
+				); e != nil {
+					continue
+				}
+				if optMap[o.ServiceID] == nil {
+					optMap[o.ServiceID] = map[uuid.UUID]*ServiceVariationType{}
+				}
+				vt, ok := optMap[o.ServiceID][o.VariationTypeID]
+				if !ok {
+					vt = &ServiceVariationType{
+						VariationTypeID:    o.VariationTypeID,
+						VariationTypeLabel: o.VariationTypeLabel,
+						Options:            []ServiceVariationOption{},
+					}
+					optMap[o.ServiceID][o.VariationTypeID] = vt
+				}
+				vt.Options = append(vt.Options, ServiceVariationOption{
+					OptionID:      o.OptionID,
+					Label:         o.OptionLabel,
+					PriceModifier: o.PriceModifier,
+				})
+			}
+		}
+	}
+
+	services := make([]ServiceDetail, 0, len(rawServices))
+	for _, rs := range rawServices {
+		variations := []ServiceVariationType{}
+		if vtMap, ok := optMap[rs.ServiceID]; ok {
+			for _, vt := range vtMap {
+				variations = append(variations, *vt)
+			}
+		}
+		services = append(services, ServiceDetail{
+			ServiceID:   rs.ServiceID,
+			ServiceName: rs.ServiceName,
+			Description: rs.Description,
+			BasePrice:   rs.BasePrice,
+			CategoryID:  rs.CategoryID,
+			Variations:  variations,
+		})
+	}
+
+	reviews := []ReviewItem{}
+	revRows, err := db.Query(ctx, `
+		SELECT ar.id, ar.client_id, u.username, u.avatar,
+		       ar.rating, ar.comment, ar.created_at
+		FROM artisan_reviews ar
+		JOIN users u ON u.id = ar.client_id
+		WHERE ar.artisan_id = $1
+		ORDER BY ar.created_at DESC
+	`, artisanID)
+	if err == nil {
+		defer revRows.Close()
+		for revRows.Next() {
+			var ri ReviewItem
+			if e := revRows.Scan(
+				&ri.ReviewID, &ri.ClientID, &ri.Username, &ri.Avatar,
+				&ri.Rating, &ri.Comment, &ri.CreatedAt,
+			); e == nil {
+				reviews = append(reviews, ri)
+			}
+		}
+	}
+
+	profile := ArtisanProfileDetail{
+		UserID:        cu.UserID,
+		Username:      cu.Username,
+		Avatar:        cu.Avatar,
+		Bio:           cu.Bio,
+		IsOnline:      cu.IsOnline,
+		IsVerified:    isVerified,
+		AvgRating:     avgRating,
+		ReviewCount:   reviewCount,
+		MemberSince:   cu.CreatedAt,
+		MemberForDays: memberForDays,
+		Categories:    categories,
+		Portfolio:     portfolio,
+		Services:      services,
+		Reviews:       reviews,
+	}
+
+	utils.WriteJSON(w, profile)
 }

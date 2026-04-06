@@ -278,9 +278,8 @@ func GetMyConversations(w http.ResponseWriter, r *http.Request) {
 		SELECT
 			c.id,
 			c.owner_id,
-			(owner.first_name || ' ' || owner.last_name)      AS owner_name,
-			c.artisan_id,
-			(artisan.first_name || ' ' || artisan.last_name)  AS artisan_name,
+			owner.username AS owner_name,
+			artisan.username AS artisan_name,
 			c.updated_at,
 			lm.content        AS last_message_content,
 			lm.msg_type       AS last_message_type,

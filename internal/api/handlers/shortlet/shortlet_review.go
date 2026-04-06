@@ -270,7 +270,7 @@ func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.QueryRow(ctx, `SELECT first_name || ' ' || last_name FROM users WHERE id = $1`, userID).Scan(&authorName)
+	db.QueryRow(ctx, `SELECT username FROM users WHERE id = $1`, userID).Scan(&authorName)
 	reply.AuthorName = authorName
 
 	go shortletcache.InvalidateProperty(context.Background(), propID.String())
@@ -349,9 +349,9 @@ func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 		SELECT
 			pr.id, pr.property_id, pr.order_id, pr.client_id,
 			pr.rating, pr.comment, pr.created_at, pr.updated_at,
-			(u.first_name || ' ' || u.last_name) AS reviewer_name,
+			u.username AS reviewer_name,
 			rr.id, rr.author_id, rr.author_role, rr.body, rr.created_at,
-			(au.first_name || ' ' || au.last_name) AS author_name
+			au.username AS author_name
 		FROM property_reviews pr
 		JOIN users u ON u.id = pr.client_id
 		LEFT JOIN property_review_replies rr ON rr.review_id = pr.id

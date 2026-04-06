@@ -235,7 +235,16 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 		if transactionType == "order_payment" && orderIDForNotif != uuid.Nil {
 			go fireOrderPaymentNotifications(db, orderIDForNotif)
 		}
-	// ── Withdrawal transfer succeeded ─────────────────────────────────────────
+
+	// ── Withdrawal transfer pending (Paystack has queued it) ──────
+	case "transfer.pending":
+		transferRef := payload.Data.Reference
+		if transferRef == "" {
+			transferRef = payload.Data.TransferCode
+		}
+		processingErr = handleTransferPending(ctx, db, transferRef, payload.Data.TransferCode)
+
+		// ── Withdrawal transfer succeeded──────────────
 	case "transfer.success":
 		transferRef := payload.Data.Reference
 		if transferRef == "" {
@@ -243,14 +252,22 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 		}
 		processingErr = handleTransferSuccess(ctx, db, transferRef, payload.Data.TransferCode)
 
-	// ── Withdrawal transfer failed or reversed ────────────────────────────────
-	case "transfer.failed", "transfer.reversed":
+	// ── Withdrawal transfer failed ────────────────────────────────────────────
+	case "transfer.failed":
 		transferRef := payload.Data.Reference
 		if transferRef == "" {
 			transferRef = payload.Data.TransferCode
 		}
 		processingErr = handleTransferFailed(ctx, db, transferRef, payload.Data.TransferCode,
 			"Your withdrawal could not be processed and has been refunded to your wallet.")
+
+	// ── Withdrawal transfer reversed (funds left but bounced back)
+	case "transfer.reversed":
+		transferRef := payload.Data.Reference
+		if transferRef == "" {
+			transferRef = payload.Data.TransferCode
+		}
+		processingErr = handleTransferReversed(ctx, db, transferRef, payload.Data.TransferCode)
 
 	default:
 		markWebhookIgnored(db, reference)
@@ -688,26 +705,81 @@ func fireOrderPaymentNotifications(db *pgxpool.Pool, orderID uuid.UUID) {
 }
 
 // ============================================================================
+// NEW: handleTransferPending — Paystack has queued the transfer but not yet
+// sent it. Status is already 'processing' from RequestWithdrawal, so this
+// is mostly a no-op with a user notification.
+// ============================================================================
+func handleTransferPending(ctx context.Context, db *pgxpool.Pool, transferRef, transferCode string) error {
+	var userID uuid.UUID
+	err := db.QueryRow(ctx, `
+        SELECT user_id FROM withdrawals
+        WHERE (transfer_reference = $1 OR transfer_code = $2)
+          AND status = 'processing'
+    `, transferRef, transferCode).Scan(&userID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			utils.Logger.Warn("transfer.pending: no matching processing withdrawal",
+				"transfer_ref", transferRef, "transfer_code", transferCode)
+			return nil
+		}
+		return fmt.Errorf("transfer.pending: failed to fetch withdrawal: %w", err)
+	}
+
+	if transferCode != "" {
+		_, _ = db.Exec(ctx, `
+            UPDATE withdrawals
+            SET transfer_code = COALESCE(NULLIF($1, ''), transfer_code)
+            WHERE transfer_reference = $2 OR transfer_code = $1
+        `, transferCode, transferRef)
+	}
+
+	utils.Logger.Info("transfer.pending received — withdrawal still processing",
+		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
+
+	go func() {
+		tokens, _ := handlers.GetUserFCMTokens(userID)
+		for _, token := range tokens {
+			if err := notifications.SendPushNotification(token,
+				"Withdrawal In Progress",
+				"Your withdrawal is being processed. Funds should arrive in your bank account shortly.",
+				map[string]string{"screen": "Wallet"},
+			); err != nil {
+				utils.Logger.Warn("Failed to send push for transfer.pending", "user_id", userID, "error", err)
+				if apperrors.IsInvalidOrExpiredTokenError(err) {
+					_, _ = db.Exec(context.Background(),
+						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+// ============================================================================
 // handleTransferSuccess — marks withdrawal successful, notifies user
 // ============================================================================
 func handleTransferSuccess(ctx context.Context, db *pgxpool.Pool, transferRef, transferCode string) error {
 	var userID uuid.UUID
 	err := db.QueryRow(ctx, `
-		UPDATE withdrawals
-		SET status = 'successful',
-		    transfer_code = COALESCE(NULLIF($1, ''), transfer_code),
-		    completed_at  = NOW()
-		WHERE (transfer_reference = $2 OR transfer_code = $1)
-		  AND status = 'processing'
-		RETURNING user_id
-	`, transferCode, transferRef).Scan(&userID)
+        UPDATE withdrawals
+        SET status       = 'successful',
+            transfer_code = COALESCE(NULLIF($1, ''), transfer_code),
+            completed_at  = NOW()
+        WHERE (transfer_reference = $2 OR transfer_code = $1)
+          AND status IN ('processing', 'pending')
+        RETURNING user_id
+    `, transferCode, transferRef).Scan(&userID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return fmt.Errorf("no matching processing withdrawal: transfer_ref=%s transfer_code=%s",
+			return fmt.Errorf("transfer.success: no matching withdrawal: ref=%s code=%s",
 				transferRef, transferCode)
 		}
-		return fmt.Errorf("failed to mark withdrawal successful: %w", err)
+		return fmt.Errorf("transfer.success: failed to mark successful: %w", err)
 	}
+
+	utils.Logger.Info("Withdrawal marked successful",
+		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
 
 	go func() {
 		tokens, _ := handlers.GetUserFCMTokens(userID)
@@ -715,17 +787,16 @@ func handleTransferSuccess(ctx context.Context, db *pgxpool.Pool, transferRef, t
 			if err := notifications.SendPushNotification(token,
 				"Withdrawal Successful",
 				"Your withdrawal has been sent to your bank account.",
-				map[string]string{
-					"screen": "Wallet",
-				},
+				map[string]string{"screen": "Wallet"},
 			); err != nil {
-				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
+				utils.Logger.Warn("Failed to send push for transfer.success", "user_id", userID, "error", err)
+				if apperrors.IsInvalidOrExpiredTokenError(err) {
+					_, _ = db.Exec(context.Background(),
+						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+				}
 			}
 		}
 	}()
-
-	utils.Logger.Info("Withdrawal marked successful",
-		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
 
 	return nil
 }
@@ -738,64 +809,165 @@ func handleTransferFailed(ctx context.Context, db *pgxpool.Pool, transferRef, tr
 	var totalDeduction float64
 
 	err := db.QueryRow(ctx, `
-		SELECT id, user_id, wallet_id, amount + fee
-		FROM withdrawals
-		WHERE (transfer_reference = $1 OR transfer_code = $2)
-		  AND status = 'processing'
-	`, transferRef, transferCode).Scan(&withdrawalID, &userID, &walletID, &totalDeduction)
+        SELECT id, user_id, wallet_id, amount + fee
+        FROM withdrawals
+        WHERE (transfer_reference = $1 OR transfer_code = $2)
+          AND status IN ('processing', 'pending')
+    `, transferRef, transferCode).Scan(&withdrawalID, &userID, &walletID, &totalDeduction)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return fmt.Errorf("no matching processing withdrawal: transfer_ref=%s transfer_code=%s",
+			return fmt.Errorf("transfer.failed: no matching withdrawal: ref=%s code=%s",
 				transferRef, transferCode)
 		}
-		return fmt.Errorf("failed to fetch withdrawal for refund: %w", err)
+		return fmt.Errorf("transfer.failed: failed to fetch withdrawal: %w", err)
 	}
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to begin refund tx: %w", err)
+		return fmt.Errorf("transfer.failed: failed to begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		UPDATE withdrawals SET status = 'failed', failure_reason = $1, completed_at = NOW()
-		WHERE id = $2
-	`, reason, withdrawalID); err != nil {
-		return fmt.Errorf("failed to mark withdrawal failed: %w", err)
+        UPDATE withdrawals
+        SET status = 'failed', failure_reason = $1, completed_at = NOW()
+        WHERE id = $2
+    `, reason, withdrawalID); err != nil {
+		return fmt.Errorf("transfer.failed: failed to mark withdrawal failed: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
-		UPDATE wallets SET balance = balance + $1, last_transaction_at = NOW()
-		WHERE id = $2
-	`, totalDeduction, walletID); err != nil {
-		return fmt.Errorf("failed to refund wallet: %w", err)
+        UPDATE wallets SET balance = balance + $1, last_transaction_at = NOW()
+        WHERE id = $2
+    `, totalDeduction, walletID); err != nil {
+		return fmt.Errorf("transfer.failed: failed to refund wallet: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO wallet_transactions (wallet_id, amount, type, reference_id)
-		VALUES ($1, $2, 'refund', $3)
-	`, walletID, totalDeduction, withdrawalID); err != nil {
-		return fmt.Errorf("failed to record refund wallet transaction: %w", err)
+        INSERT INTO wallet_transactions (wallet_id, amount, type, reference_id)
+        VALUES ($1, $2, 'refund', $3)
+    `, walletID, totalDeduction, withdrawalID); err != nil {
+		return fmt.Errorf("transfer.failed: failed to record refund tx: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit withdrawal refund: %w", err)
+		return fmt.Errorf("transfer.failed: commit failed: %w", err)
 	}
 
 	utils.Logger.Info("Withdrawal refunded after transfer failure",
 		"withdrawal_id", withdrawalID, "user_id", userID, "refund_amount", totalDeduction)
+
+	_ = utils.CreateNotification(
+		ctx, userID, utils.NotifPaymentRefunded,
+		"Withdrawal Reversed",
+		"Your withdrawal was returned by your bank. Your full amount including fees has been refunded to your wallet. Please verify your bank details and try again.",
+		map[string]interface{}{"screen": "Wallet", "withdrawal_id": withdrawalID.String()},
+	)
 
 	go func() {
 		tokens, _ := handlers.GetUserFCMTokens(userID)
 		for _, token := range tokens {
 			if err := notifications.SendPushNotification(token,
 				"Withdrawal Failed",
-				"Your withdrawal could not be processed and has been refunded to your wallet.",
-				map[string]string{
-					"screen": "Wallet",
-				},
+				"Your withdrawal could not be processed. Your funds have been returned to your wallet.",
+				map[string]string{"screen": "Wallet"},
 			); err != nil {
-				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
+				utils.Logger.Warn("Failed to send push for transfer.failed", "user_id", userID, "error", err)
+				if apperrors.IsInvalidOrExpiredTokenError(err) {
+					_, _ = db.Exec(context.Background(),
+						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+// ============================================================================
+// NEW: handleTransferReversed — Paystack sent the money but the receiving bank
+// returned it (wrong account, bank downtime, etc.). The funds are back in your
+// Paystack balance, so we refund the user's wallet in full INCLUDING the fee
+// since the transfer was not their fault.
+// ============================================================================
+func handleTransferReversed(ctx context.Context, db *pgxpool.Pool, transferRef, transferCode string) error {
+	var withdrawalID, walletID, userID uuid.UUID
+	var totalDeduction float64 // amount + fee — refund everything on a reversal
+
+	err := db.QueryRow(ctx, `
+        SELECT id, user_id, wallet_id, amount + fee
+        FROM withdrawals
+        WHERE (transfer_reference = $1 OR transfer_code = $2)
+          AND status IN ('processing', 'pending', 'successful')
+    `, transferRef, transferCode).Scan(&withdrawalID, &userID, &walletID, &totalDeduction)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			// Could arrive after transfer.success was already processed; log and skip.
+			utils.Logger.Warn("transfer.reversed: no matching withdrawal found",
+				"transfer_ref", transferRef, "transfer_code", transferCode)
+			return nil
+		}
+		return fmt.Errorf("transfer.reversed: failed to fetch withdrawal: %w", err)
+	}
+
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("transfer.reversed: failed to begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+        UPDATE withdrawals
+        SET status         = 'failed',
+            failure_reason = 'Transfer was reversed by the receiving bank. Your funds have been returned to your wallet.',
+            completed_at   = NOW()
+        WHERE id = $1
+    `, withdrawalID); err != nil {
+		return fmt.Errorf("transfer.reversed: failed to update withdrawal: %w", err)
+	}
+
+	// Refund full deduction (amount + fee) — the transfer never settled.
+	if _, err := tx.Exec(ctx, `
+        UPDATE wallets SET balance = balance + $1, last_transaction_at = NOW()
+        WHERE id = $2
+    `, totalDeduction, walletID); err != nil {
+		return fmt.Errorf("transfer.reversed: failed to refund wallet: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+        INSERT INTO wallet_transactions (wallet_id, amount, type, reference_id)
+        VALUES ($1, $2, 'refund', $3)
+    `, walletID, totalDeduction, withdrawalID); err != nil {
+		return fmt.Errorf("transfer.reversed: failed to record refund tx: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("transfer.reversed: commit failed: %w", err)
+	}
+
+	utils.Logger.Info("Withdrawal refunded after transfer reversal",
+		"withdrawal_id", withdrawalID, "user_id", userID, "refund_amount", totalDeduction)
+
+	_ = utils.CreateNotification(
+		ctx, userID, utils.NotifPaymentRefunded,
+		"Withdrawal Reversed",
+		"Your withdrawal was returned by your bank. Your full amount including fees has been refunded to your wallet. Please verify your bank details and try again.",
+		map[string]interface{}{"screen": "Wallet", "withdrawal_id": withdrawalID.String()},
+	)
+
+	go func() {
+		tokens, _ := handlers.GetUserFCMTokens(userID)
+		for _, token := range tokens {
+			if err := notifications.SendPushNotification(token,
+				"Withdrawal Reversed",
+				"Your withdrawal was returned by your bank. Your full amount including fees has been refunded to your wallet. Please verify your bank details and try again.",
+				map[string]string{"screen": "Wallet"},
+			); err != nil {
+				utils.Logger.Warn("Failed to send push for transfer.reversed", "user_id", userID, "error", err)
+				if apperrors.IsInvalidOrExpiredTokenError(err) {
+					_, _ = db.Exec(context.Background(),
+						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+				}
 			}
 		}
 	}()

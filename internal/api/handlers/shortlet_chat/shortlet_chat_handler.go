@@ -271,9 +271,8 @@ func GetMyShortletConversations(w http.ResponseWriter, r *http.Request) {
 		SELECT
 			c.id,
 			c.client_id,
-			(cu.first_name || ' ' || cu.last_name) AS client_name,
-			c.owner_id,
-			(ou.first_name || ' ' || ou.last_name)  AS owner_name,
+			cu.username AS client_name,
+			ou.username AS owner_name,
 			c.order_id,
 			c.chat_expires_at,
 			c.updated_at,

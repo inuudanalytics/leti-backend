@@ -312,6 +312,81 @@ definitions:
           $ref: '#/definitions/booking.Availability'
         type: array
     type: object
+  booking.ArtisanListItem:
+    properties:
+      avatar: {}
+      avg_rating:
+        type: number
+      categories:
+        items:
+          $ref: '#/definitions/booking.CategorySummary'
+        type: array
+      distance_km:
+        type: number
+      is_online:
+        type: boolean
+      location:
+        $ref: '#/definitions/booking.LocationPoint'
+      review_count:
+        type: integer
+      services:
+        items:
+          $ref: '#/definitions/booking.ArtisanServiceSummary'
+        type: array
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  booking.ArtisanProfileDetail:
+    properties:
+      avatar: {}
+      avg_rating:
+        type: number
+      bio:
+        type: string
+      categories:
+        items:
+          $ref: '#/definitions/booking.CategorySummary'
+        type: array
+      is_online:
+        type: boolean
+      is_verified:
+        type: boolean
+      member_for_days:
+        type: integer
+      member_since:
+        type: string
+      portfolio:
+        items:
+          $ref: '#/definitions/booking.PortfolioImage'
+        type: array
+      review_count:
+        type: integer
+      reviews:
+        items:
+          $ref: '#/definitions/booking.ReviewItem'
+        type: array
+      services:
+        items:
+          $ref: '#/definitions/booking.ServiceDetail'
+        type: array
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  booking.ArtisanServiceSummary:
+    properties:
+      base_price:
+        type: number
+      category_id:
+        type: string
+      service_id:
+        type: string
+      service_name:
+        type: string
+    type: object
   booking.Availability:
     properties:
       artisan_id:
@@ -449,6 +524,86 @@ definitions:
       total_price:
         type: number
       updated_at:
+        type: string
+    type: object
+  booking.CategorySummary:
+    properties:
+      category_id:
+        type: string
+      category_name:
+        type: string
+    type: object
+  booking.LocationPoint:
+    properties:
+      latitude:
+        type: number
+      longitude:
+        type: number
+    type: object
+  booking.PortfolioImage:
+    properties:
+      caption:
+        type: string
+      category_id:
+        type: string
+      image_id:
+        type: string
+      image_url:
+        type: string
+      sort_order:
+        type: integer
+    type: object
+  booking.ReviewItem:
+    properties:
+      avatar: {}
+      client_id:
+        type: string
+      comment:
+        type: string
+      created_at:
+        type: string
+      rating:
+        type: integer
+      review_id:
+        type: string
+      username:
+        type: string
+    type: object
+  booking.ServiceDetail:
+    properties:
+      base_price:
+        type: number
+      category_id:
+        type: string
+      description:
+        type: string
+      service_id:
+        type: string
+      service_name:
+        type: string
+      variations:
+        items:
+          $ref: '#/definitions/booking.ServiceVariationType'
+        type: array
+    type: object
+  booking.ServiceVariationOption:
+    properties:
+      label:
+        type: string
+      option_id:
+        type: string
+      price_modifier:
+        type: number
+    type: object
+  booking.ServiceVariationType:
+    properties:
+      options:
+        items:
+          $ref: '#/definitions/booking.ServiceVariationOption'
+        type: array
+      variation_type_id:
+        type: string
+      variation_type_label:
         type: string
     type: object
   chat.Conversation:
@@ -3165,6 +3320,49 @@ paths:
       summary: Update a service option
       tags:
       - Artisan Services
+  /artisans/{id}:
+    get:
+      description: Returns the full public profile of a single artisan by their user
+        UUID.
+      parameters:
+      - description: Artisan user UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/booking.ArtisanProfileDetail'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get artisan profile
+      tags:
+      - Artisan Discovery
   /artisans/me/dashboard:
     get:
       description: 'Returns aggregated stats for the authenticated artisan''s dashboard:'
@@ -3207,6 +3405,83 @@ paths:
       summary: Artisan dashboard summary cards
       tags:
       - Dashboard
+  /artisans/online:
+    get:
+      description: Returns a paginated list of artisans whose online status is TRUE.
+      parameters:
+      - description: Filter by category UUID
+        in: query
+        name: category_id
+        type: string
+      - description: Partial match on service name
+        in: query
+        name: service_name
+        type: string
+      - description: Partial match on artisan username
+        in: query
+        name: username
+        type: string
+      - description: Sort by top rated (min rating 4.0)
+        in: query
+        name: top_rated
+        type: boolean
+      - description: Client latitude for nearby search
+        in: query
+        name: lat
+        type: number
+      - description: Client longitude for nearby search
+        in: query
+        name: lng
+        type: number
+      - description: Radius in km (default 10)
+        in: query
+        name: radius_km
+        type: number
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Results per page (default 20, max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                items:
+                  $ref: '#/definitions/booking.ArtisanListItem'
+                type: array
+              limit:
+                type: integer
+              page:
+                type: integer
+              total:
+                type: integer
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List online artisans
+      tags:
+      - Artisan Discovery
   /auth/apple:
     post:
       consumes:
@@ -4019,7 +4294,8 @@ paths:
     patch:
       consumes:
       - application/json
-      description: 'Updates the authenticated user''s editable profile fields: bio.'
+      description: 'Updates the authenticated user''s editable profile fields: bio,
+        username. Username can only be changed once every 30 days.'
       parameters:
       - description: Fields to update — all optional, send only what you want to change
         in: body
@@ -4028,6 +4304,8 @@ paths:
         schema:
           properties:
             bio:
+              type: string
+            username:
               type: string
           type: object
       produces:
@@ -4042,6 +4320,8 @@ paths:
                   bio:
                     type: string
                   id:
+                    type: string
+                  username:
                     type: string
                 type: object
               message:

@@ -89,13 +89,13 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	var artisanFirstName string
+	var artisanUsername string
 	err = db.QueryRow(ctx, `
-		SELECT first_name FROM users
+		SELECT username FROM users
 		WHERE id = $1
 		  AND active_role = 'artisan'
 		  AND status = 'approved'
-	`, artisanID).Scan(&artisanFirstName)
+	`, artisanID).Scan(&artisanUsername)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "artisan not found or not approved", http.StatusNotFound)
@@ -127,8 +127,8 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var clientFirstName string
-	_ = db.QueryRow(ctx, `SELECT first_name FROM users WHERE id = $1`, userID).Scan(&clientFirstName)
+	var clientUsername string
+	_ = db.QueryRow(ctx, `SELECT username FROM users WHERE id = $1`, userID).Scan(&clientUsername)
 
 	var reviewID uuid.UUID
 	err = db.QueryRow(ctx, `
@@ -171,7 +171,7 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 	notifTitle := "You received a new review!"
 	notifBody := fmt.Sprintf(
 		"%s rated you %s (%d/5). Your average is now %.1f★ across %d review(s).",
-		clientFirstName, stars, req.Rating, avgRating, totalReviews,
+		clientUsername, stars, req.Rating, avgRating, totalReviews,
 	)
 	notifData := map[string]interface{}{
 		"review_id":     reviewID.String(),
@@ -179,7 +179,7 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 		"rating":        req.Rating,
 		"avg_rating":    avgRating,
 		"total_reviews": totalReviews,
-		"reviewer":      clientFirstName,
+		"reviewer":      clientUsername,
 	}
 
 	go func() {
@@ -290,8 +290,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 			ar.created_at,
 			ar.updated_at,
 			reviewer.id         AS reviewer_id,
-			reviewer.first_name AS reviewer_first_name,
-			reviewer.last_name  AS reviewer_last_name,
+			reviewer.username AS reviewer_username,
 			reviewer.avatar     AS reviewer_avatar,
 			-- reply columns (NULLable)
 			rr.id          AS reply_id,
@@ -299,8 +298,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 			rr.body        AS reply_body,
 			rr.created_at  AS reply_created_at,
 			author.id         AS reply_author_id,
-			author.first_name AS reply_author_first_name,
-			author.last_name  AS reply_author_last_name,
+			author.username AS reply_author_username,
 			author.avatar     AS reply_author_avatar
 		FROM artisan_reviews ar
 		JOIN users reviewer ON reviewer.id = ar.client_id
@@ -344,31 +342,29 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var (
-			reviewID          uuid.UUID
-			rating            int
-			comment           *string
-			createdAt         time.Time
-			updatedAt         time.Time
-			reviewerID        uuid.UUID
-			reviewerFirstName string
-			reviewerLastName  string
-			reviewerAvatar    []byte
+			reviewID         uuid.UUID
+			rating           int
+			comment          *string
+			createdAt        time.Time
+			updatedAt        time.Time
+			reviewerID       uuid.UUID
+			reviewerUsername string
+			reviewerAvatar   []byte
 
-			replyID              *uuid.UUID
-			replyAuthorRole      *string
-			replyBody            *string
-			replyCreatedAt       *time.Time
-			replyAuthorID        *uuid.UUID
-			replyAuthorFirstName *string
-			replyAuthorLastName  *string
-			replyAuthorAvatar    []byte
+			replyID             *uuid.UUID
+			replyAuthorRole     *string
+			replyBody           *string
+			replyCreatedAt      *time.Time
+			replyAuthorID       *uuid.UUID
+			replyAuthorUsername *string
+			replyAuthorAvatar   []byte
 		)
 
 		if err := rows.Scan(
 			&reviewID, &rating, &comment, &createdAt, &updatedAt,
-			&reviewerID, &reviewerFirstName, &reviewerLastName, &reviewerAvatar,
+			&reviewerID, &reviewerUsername, &reviewerAvatar,
 			&replyID, &replyAuthorRole, &replyBody, &replyCreatedAt,
-			&replyAuthorID, &replyAuthorFirstName, &replyAuthorLastName, &replyAuthorAvatar,
+			&replyAuthorID, &replyAuthorUsername, &replyAuthorAvatar,
 		); err != nil {
 			utils.Logger.Errorf("failed to scan review row: %v", err)
 			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
@@ -383,7 +379,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 				CreatedAt:    createdAt,
 				UpdatedAt:    updatedAt,
 				ReviewerID:   reviewerID,
-				ReviewerName: reviewerFirstName + " " + reviewerLastName,
+				ReviewerName: reviewerUsername,
 				Replies:      []ReplyItem{},
 			}
 			if len(reviewerAvatar) > 0 {
@@ -402,7 +398,7 @@ func GetArtisanReviews(w http.ResponseWriter, r *http.Request) {
 			reply := ReplyItem{
 				ID:         *replyID,
 				AuthorID:   *replyAuthorID,
-				AuthorName: *replyAuthorFirstName + " " + *replyAuthorLastName,
+				AuthorName: *replyAuthorUsername,
 				AuthorRole: *replyAuthorRole,
 				Body:       *replyBody,
 				CreatedAt:  *replyCreatedAt,
@@ -585,25 +581,25 @@ func ReplyToReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var notifRecipient uuid.UUID
-	var notifTitle, notifBody, authorFirstName string
+	var notifTitle, notifBody, authorUsername string
 
-	_ = db.QueryRow(ctx, `SELECT first_name FROM users WHERE id = $1`, userID).Scan(&authorFirstName)
+	_ = db.QueryRow(ctx, `SELECT username FROM users WHERE id = $1`, userID).Scan(&authorUsername)
 
 	switch role {
 	case "artisan":
 		notifRecipient = clientID
 		notifTitle = "The artisan replied to your review"
-		notifBody = fmt.Sprintf("%s replied to your review.", authorFirstName)
+		notifBody = fmt.Sprintf("%s replied to your review.", authorUsername)
 	case "client":
 		notifRecipient = artisanID
 		notifTitle = "A client followed up on their review"
-		notifBody = fmt.Sprintf("%s added a follow-up to their review.", authorFirstName)
+		notifBody = fmt.Sprintf("%s added a follow-up to their review.", authorUsername)
 	}
 
 	notifData := map[string]interface{}{
 		"reply_id":  replyID.String(),
 		"review_id": reviewID.String(),
-		"author":    authorFirstName,
+		"author":    authorUsername,
 		"role":      role,
 	}
 
@@ -684,8 +680,7 @@ func GetReviewReplies(w http.ResponseWriter, r *http.Request) {
 			rr.body,
 			rr.created_at,
 			u.id         AS author_id,
-			u.first_name AS author_first_name,
-			u.last_name  AS author_last_name,
+			u.username AS author_username,
 			u.avatar     AS author_avatar
 		FROM artisan_review_replies rr
 		JOIN users u ON u.id = rr.author_id
@@ -712,7 +707,7 @@ func GetReviewReplies(w http.ResponseWriter, r *http.Request) {
 	replies := make([]ReplyItem, 0)
 	for rows.Next() {
 		var item ReplyItem
-		var firstName, lastName string
+		var authorUsername string
 		var avatarJSON []byte
 		if err := rows.Scan(
 			&item.ID,
@@ -720,15 +715,14 @@ func GetReviewReplies(w http.ResponseWriter, r *http.Request) {
 			&item.Body,
 			&item.CreatedAt,
 			&item.AuthorID,
-			&firstName,
-			&lastName,
+			&authorUsername,
 			&avatarJSON,
 		); err != nil {
 			utils.Logger.Errorf("failed to scan reply row: %v", err)
 			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		item.AuthorName = firstName + " " + lastName
+		item.AuthorName = authorUsername
 		if len(avatarJSON) > 0 {
 			var av struct {
 				URL string `json:"url"`

@@ -18,6 +18,9 @@ func bookingRouter() *http.ServeMux {
 	mux.HandleFunc("GET /bookings/artisans/{id}/availability", booking.GetArtisanAvailability)
 	mux.HandleFunc("GET /bookings/artisans/{id}/available-slots", booking.GetAvailableSlots)
 
+	mux.HandleFunc("GET /bookings/artisans/online", booking.GetOnlineArtisans)
+	mux.HandleFunc("GET /bookings/artisans/{id}", booking.GetArtisanProfile)
+
 	// ── Booking lifecycle
 	mux.HandleFunc("POST /bookings/book", booking.CreateBooking)
 
