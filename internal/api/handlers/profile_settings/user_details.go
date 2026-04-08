@@ -189,3 +189,80 @@ func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+// ToggleArtisanOnlineStatus godoc
+// @Summary      Toggle artisan online/offline status
+// @Description  Allows an authenticated artisan to set their online or offline status. Only users with active_role 'artisan' and account status 'approved' can use this endpoint.
+// @Tags         Artisans
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{is_online=boolean}  true  "Online status to set"
+// @Success      200   {object}  object{status=string,is_online=boolean,message=string}
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Failure      403   {object}  object{error=string}
+// @Failure      405   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Router       /artisans/online-status [patch]
+// @Security     BearerAuth
+func ToggleArtisanOnlineStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	db := sqlconnect.DB
+	if db == nil {
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	userID, ok := r.Context().Value(utils.ContextKey("userId")).(uuid.UUID)
+	if !ok {
+		utils.WriteError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !isArtisan(r.Context()) {
+		utils.WriteError(w, "only artisans can toggle online status", http.StatusForbidden)
+		return
+	}
+
+	var body struct {
+		IsOnline bool `json:"is_online"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.WriteError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	var newStatus bool
+	err := db.QueryRow(r.Context(), `
+		UPDATE users
+		SET is_online = $1
+		WHERE id = $2 AND active_role = 'artisan' AND status = 'approved' AND deleted_at IS NULL
+		RETURNING is_online
+	`, body.IsOnline, userID).Scan(&newStatus)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			utils.WriteError(w, "artisan not found or not approved", http.StatusForbidden)
+			return
+		}
+		utils.Logger.Errorf("failed to toggle online status: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, map[string]interface{}{
+		"status":    "success",
+		"is_online": newStatus,
+		"message":   fmt.Sprintf("You are now %s", map[bool]string{true: "online", false: "offline"}[newStatus]),
+	})
+}
+
+// isArtisan checks whether the authenticated user's active_role is 'artisan'.
+func isArtisan(ctx context.Context) bool {
+	role, ok := ctx.Value(utils.ContextKey("activeRole")).(string)
+	return ok && role == "artisan"
+}

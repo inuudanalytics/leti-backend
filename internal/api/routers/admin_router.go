@@ -51,5 +51,15 @@ func adminRouter() *http.ServeMux {
 	// ── Devices ───────────────────────────────────────────────────────────────
 	mux.Handle("POST /admin/device/tokens", http.HandlerFunc(admins.RegisterAdminDevice))
 
+	// ── Support ─────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /admin/support/ws", admins.ServeAdminSupportWS)
+	mux.HandleFunc("GET /admin/support", admins.AdminListSupportTickets)
+	mux.HandleFunc("GET /admin/support/{ticketId}", admins.AdminGetSupportTicket)
+	mux.HandleFunc("GET /admin/support/{ticketId}/messages", admins.AdminGetTicketMessages)
+	mux.HandleFunc("POST /admin/support/{ticketId}/reply", admins.AdminReplySupportTicket)
+	mux.HandleFunc("POST /admin/support/{ticketId}/reply/images", admins.AdminReplySupportTicketImage)
+	mux.HandleFunc("PATCH /admin/support/{ticketId}/status", admins.AdminUpdateTicketStatus)
+	mux.HandleFunc("PATCH /admin/support/{ticketId}/assign", admins.AdminAssignTicket)
+
 	return mux
 }

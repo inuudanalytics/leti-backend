@@ -1840,6 +1840,560 @@ paths:
       summary: Update platform setting
       tags:
       - Admin Settings
+  /admin/support/tickets:
+    get:
+      description: Returns a paginated list of all support tickets across all users,
+        sorted by priority (urgent → high → medium → low) then by most recently updated.
+        Includes per-ticket unread and message counts, plus global open/in-progress/resolved
+        stats. Accessible by super_admin, admin, and support roles.
+      parameters:
+      - description: 'Filter by status: open | assigned | in_progress | waiting_user
+          | resolved | closed'
+        in: query
+        name: status
+        type: string
+      - description: 'Filter by category: payment_and_refund | booking_and_reservation
+          | service_issues | disputes | account_and_verification | technical_issue
+          | report_user_or_property | general_inquiry | other'
+        in: query
+        name: category
+        type: string
+      - description: 'Filter by priority: low | medium | high | urgent'
+        in: query
+        name: priority
+        type: string
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              stats:
+                properties:
+                  in_progress:
+                    type: integer
+                  open:
+                    type: integer
+                  resolved:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all support tickets (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}:
+    get:
+      description: Returns full ticket detail including user name, email, assigned
+        admin name, message count, and a paginated message history (oldest-first).
+        Also marks all unread user messages as read. Accessible by super_admin, admin,
+        and support roles.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: Max messages to return (1–100, default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Message offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              messages:
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single support ticket with messages (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}/assign:
+    patch:
+      consumes:
+      - application/json
+      description: Sets assigned_admin_id on the ticket and moves status to 'assigned'.
+        Restricted to super_admin and admin roles only (support agents cannot reassign
+        tickets).
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: UUID of the admin to assign
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            admin_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Assign a support ticket to an admin (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}/messages:
+    get:
+      description: Returns paginated messages for a ticket oldest-first (up to 200
+        per page). Also marks all unread user messages in the ticket as read. Accessible
+        by super_admin, admin, and support roles.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: Max messages to return (1–200, default 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get message history for a support ticket (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}/reply:
+    post:
+      consumes:
+      - application/json
+      description: Saves a text message from an admin into the ticket, auto-assigns
+        the ticket to the replying admin if not yet assigned, advances status from
+        open/assigned → in_progress, delivers the message over WebSocket to both the
+        user and the admin, and sends a push notification + in-app notification to
+        the user. Accessible by super_admin, admin, and support roles.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: Message content
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            content:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send a text reply to a support ticket (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}/reply/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads 1–5 images to Cloudinary and inserts them as image-type
+        messages in the ticket. Delivers each message over WebSocket to the user and
+        the admin, then sends a push notification to the user. The ticket must not
+        be closed. Accessible by super_admin, admin, and support roles.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: Image file(s) — up to 5
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              messages:
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send image reply to a support ticket (admin)
+      tags:
+      - Admin Support
+  /admin/support/tickets/{ticketId}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets the ticket status to the given value. When resolving or closing,
+        also stamps resolved_at and fires an in-app notification + push notification
+        to the user. The action is recorded in the admin audit log. Accessible by
+        super_admin, admin, and support roles.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: ticketId
+        required: true
+        type: string
+      - description: 'New status. Must be one of: open | assigned | in_progress |
+          waiting_user | resolved | closed'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            status:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update support ticket status (admin)
+      tags:
+      - Admin Support
+  /admin/support/ws:
+    get:
+      description: |-
+        Upgrades the connection to a WebSocket for real-time admin support chat. Accessible by super_admin, admin, and support roles.
+
+        **Inbound frame shape:**
+        ```json
+        { "type": "message", "ticket_id": "<uuid>", "content": "hello" }
+        { "type": "read",    "ticket_id": "<uuid>" }
+        { "type": "typing",  "ticket_id": "<uuid>" }
+        ```
+
+        **Outbound frame types:** `message`, `read`, `typing`, `error`
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Connect to live support chat as admin (WebSocket)
+      tags:
+      - Admin Support
   /admin/users:
     get:
       description: Returns a paginated list of all users. Supports filtering by active_role,
@@ -3482,6 +4036,77 @@ paths:
       summary: List online artisans
       tags:
       - Artisan Discovery
+  /artisans/online-status:
+    patch:
+      consumes:
+      - application/json
+      description: Allows an authenticated artisan to set their online or offline
+        status. Only users with active_role 'artisan' and account status 'approved'
+        can use this endpoint.
+      parameters:
+      - description: Online status to set
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            is_online:
+              type: boolean
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              is_online:
+                type: boolean
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "405":
+          description: Method Not Allowed
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Toggle artisan online/offline status
+      tags:
+      - Artisans
   /auth/apple:
     post:
       consumes:
@@ -9087,6 +9712,448 @@ paths:
       summary: Connect to the shortlet chat WebSocket
       tags:
       - Shortlet Chat
+  /support/tickets:
+    get:
+      description: Returns all support tickets belonging to the authenticated user
+        (client, artisan, or owner), paginated newest-first. Also returns unread admin
+        message count per ticket.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my support tickets
+      tags:
+      - Support
+    post:
+      consumes:
+      - application/json
+      description: Any authenticated platform user (client, artisan, or owner) can
+        open a support ticket. Each ticket gets a unique ID and starts in "open" status.
+      parameters:
+      - description: 'Ticket details. category must be one of: payment_and_refund,
+          booking_and_reservation, service_issues, disputes, account_and_verification,
+          technical_issue, report_user_or_property, general_inquiry, other. priority:
+          low | medium | high | urgent (default: medium).'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            category:
+              type: string
+            priority:
+              type: string
+            subject:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                properties:
+                  category:
+                    type: string
+                  created_at:
+                    type: string
+                  id:
+                    type: string
+                  priority:
+                    type: string
+                  status:
+                    type: string
+                  subject:
+                    type: string
+                  updated_at:
+                    type: string
+                  user_id:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a support ticket
+      tags:
+      - Support
+  /support/tickets/{id}:
+    get:
+      description: Returns the full detail of one support ticket. The authenticated
+        user must be the ticket owner.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single support ticket
+      tags:
+      - Support
+  /support/tickets/{id}/messages:
+    get:
+      description: Returns paginated messages for a ticket oldest-first. Also marks
+        all unread admin messages as read. The authenticated user must own the ticket.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Max messages to return (1–100, default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination (default 0)
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+                  total:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ticket message history
+      tags:
+      - Support
+  /support/tickets/{id}/messages/images:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads 1–5 images to Cloudinary and posts them as image-type messages
+        in the ticket. The authenticated user must own the ticket and it must not
+        be closed or resolved.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image file(s) — up to 5
+        in: formData
+        name: images
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              messages:
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send image message(s) in a support ticket
+      tags:
+      - Support
+  /support/tickets/{id}/read:
+    patch:
+      description: Marks all unread admin messages in the ticket as read. The authenticated
+        user must own the ticket.
+      parameters:
+      - description: Ticket UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark admin messages as read
+      tags:
+      - Support
+  /support/ws:
+    get:
+      description: |-
+        Upgrades the connection to a WebSocket for real-time support chat. Clients, artisans, and owners can all connect. Send JSON frames with type "message", "read", or "typing".
+
+        **Outbound frame types:** `message`, `read`, `typing`, `error`
+
+        **Inbound frame shape:**
+        ```json
+        { "type": "message", "ticket_id": "<uuid>", "content": "hello" }
+        { "type": "read",    "ticket_id": "<uuid>" }
+        { "type": "typing",  "ticket_id": "<uuid>" }
+        ```
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Connect to live support chat (WebSocket)
+      tags:
+      - Support
   /wallet/fund:
     post:
       consumes:

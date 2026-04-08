@@ -40,6 +40,8 @@ func MainRouter() *http.ServeMux {
 
 	apiMux.Handle("/admin/", adminRouter())
 
+	apiMux.Handle("/support/", supportRouter())
+
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", apiMux))
 
 	return mux
