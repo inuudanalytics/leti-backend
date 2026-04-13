@@ -61,5 +61,19 @@ func adminRouter() *http.ServeMux {
 	mux.HandleFunc("PATCH /admin/support/{ticketId}/status", admins.AdminUpdateTicketStatus)
 	mux.HandleFunc("PATCH /admin/support/{ticketId}/assign", admins.AdminAssignTicket)
 
+	// ── List & detail ──────────────────────
+	mux.Handle("GET /admin/disputes", http.HandlerFunc(admins.AdminListDisputes))
+	mux.Handle("GET /admin/disputes/{id}", http.HandlerFunc(admins.AdminGetDispute))
+
+	// ── Status update ──────────────────────
+	mux.Handle("PATCH /admin/disputes/{id}/status", http.HandlerFunc(admins.AdminUpdateDisputeStatus))
+
+	// ── Resolution decision ───────────────────
+	mux.Handle("POST /admin/disputes/{id}/decision", http.HandlerFunc(admins.AdminResolveDispute))
+
+	// ── Dispute ↔ support ticket ──────────────
+	mux.Handle("POST /admin/disputes/{id}/ticket", http.HandlerFunc(admins.AdminCreateDisputeTicket))
+	mux.Handle("GET /admin/disputes/{id}/ticket", http.HandlerFunc(admins.AdminGetDisputeTicket))
+
 	return mux
 }

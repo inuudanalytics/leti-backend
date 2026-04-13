@@ -11,6 +11,7 @@ import (
 
 	"leti_server/internal/api/handlers"
 	adminHandlers "leti_server/internal/api/handlers/admins"
+	"leti_server/internal/api/handlers/calls"
 	chatHandler "leti_server/internal/api/handlers/chat"
 	paymentwebhook "leti_server/internal/api/handlers/payment_webhook"
 	shortletchathandler "leti_server/internal/api/handlers/shortlet_chat"
@@ -90,6 +91,8 @@ func main() {
 	// ================= WEBHOOK WORKER =================
 	webhookCtx, webhookCancel := context.WithCancel(context.Background())
 
+	go calls.StartRingingTimeoutWorker(webhookCtx)
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -140,8 +143,7 @@ func main() {
 		"/api/v1/agents/reset-password/reset",
 		"/api/v1/webhooks/paystack",
 		"/api/v1/wallets/verify/payment",
-		"/api/v1/marketplace/parts",
-		"/api/v1/marketplace/stores",
+		"/api/v1/system/health",
 	)
 
 	secureMux := utils.ApplyMiddlewares(

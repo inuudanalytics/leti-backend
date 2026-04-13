@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS order_disputes (
+CREATE TABLE IF NOT EXISTS booking_disputes (
     id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id      UUID        NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    booking_id    UUID        NOT NULL REFERENCES artisan_bookings(id) ON DELETE CASCADE,
     filed_by      UUID        NOT NULL REFERENCES users(id),
     respondent_id UUID        NOT NULL REFERENCES users(id),
     reason        TEXT        NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS order_disputes (
     resolved_at   TIMESTAMPTZ
 );
  
-CREATE INDEX IF NOT EXISTS idx_order_disputes_order_id   ON order_disputes(order_id);
-CREATE INDEX IF NOT EXISTS idx_order_disputes_filed_by   ON order_disputes(filed_by);
-CREATE INDEX IF NOT EXISTS idx_order_disputes_status     ON order_disputes(status);
+CREATE INDEX IF NOT EXISTS idx_booking_disputes_booking_id  ON booking_disputes(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_disputes_filed_by    ON booking_disputes(filed_by);
+CREATE INDEX IF NOT EXISTS idx_booking_disputes_status      ON booking_disputes(status);
  

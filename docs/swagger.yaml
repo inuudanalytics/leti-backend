@@ -144,6 +144,45 @@ definitions:
         description: approved | suspended | probation | rejected | pending
         type: string
     type: object
+  admins.AdminCreateDisputeTicketRequest:
+    properties:
+      priority:
+        description: |-
+          Priority is the ticket urgency level. Defaults to "high" when omitted.
+          Example: high
+        enum:
+        - low
+        - medium
+        - high
+        - urgent
+        example: high
+        type: string
+      subject:
+        description: |-
+          Subject is the ticket title shown in the support chat.
+          Defaults to "Dispute escalation — <type> dispute" when omitted.
+          Example: Regarding your incomplete job dispute
+        example: Regarding your incomplete job dispute
+        type: string
+    type: object
+  admins.AdminUpdateDisputeStatusRequest:
+    properties:
+      admin_notes:
+        description: |-
+          AdminNotes is an optional internal note attached to the dispute
+          Example: Reviewing uploaded evidence from both parties
+        example: Reviewing uploaded evidence from both parties
+        type: string
+      status:
+        description: |-
+          Status must be "open" or "investigating"
+          Example: investigating
+        enum:
+        - open
+        - investigating
+        example: investigating
+        type: string
+    type: object
   artisanprofilesettings.ArtisanCategory:
     properties:
       artisan_id:
@@ -642,6 +681,25 @@ definitions:
       sender_role:
         type: string
     type: object
+  disputes.DisputeEvidenceSwagger:
+    properties:
+      public_id:
+        example: disputes/sample
+        type: string
+      url:
+        example: https://res.cloudinary.com/demo/image/upload/sample.jpg
+        type: string
+    type: object
+  disputes.FileDisputeRequest:
+    properties:
+      evidence:
+        items:
+          $ref: '#/definitions/disputes.DisputeEvidenceSwagger'
+        type: array
+      reason:
+        example: Artisan did not complete the agreed work
+        type: string
+    type: object
   profilesettings.Address:
     properties:
       address_type:
@@ -1114,6 +1172,87 @@ definitions:
         description: '"client" | "owner"'
         type: string
     type: object
+  support.DisputeDecisionRequest:
+    properties:
+      action:
+        description: 'Action must be one of: refund_full, release_full, refund_partial,
+          dismiss'
+        type: string
+      admin_notes:
+        type: string
+      amount:
+        description: required for refund_partial
+        type: number
+      resolution:
+        type: string
+    type: object
+  support.SupportTicket:
+    properties:
+      assigned_admin_id:
+        type: string
+      booking_dispute_id:
+        type: string
+      category:
+        $ref: '#/definitions/support.TicketCategory'
+      created_at:
+        type: string
+      id:
+        type: string
+      job_dispute_id:
+        type: string
+      order_dispute_id:
+        type: string
+      priority:
+        type: string
+      resolved_at:
+        type: string
+      status:
+        $ref: '#/definitions/support.TicketStatus'
+      subject:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  support.TicketCategory:
+    enum:
+    - payment_and_refund
+    - booking_and_reservation
+    - service_issues
+    - disputes
+    - account_and_verification
+    - technical_issue
+    - report_user_or_property
+    - general_inquiry
+    - other
+    type: string
+    x-enum-varnames:
+    - CategoryPaymentAndRefund
+    - CategoryBookingAndReservation
+    - CategoryServiceIssues
+    - CategoryDisputes
+    - CategoryAccountAndVerification
+    - CategoryTechnicalIssue
+    - CategoryReportUserOrProperty
+    - CategoryGeneralInquiry
+    - CategoryOther
+  support.TicketStatus:
+    enum:
+    - open
+    - assigned
+    - in_progress
+    - waiting_user
+    - resolved
+    - closed
+    type: string
+    x-enum-varnames:
+    - TicketStatusOpen
+    - TicketStatusAssigned
+    - TicketStatusInProgress
+    - TicketStatusWaitingUser
+    - TicketStatusResolved
+    - TicketStatusClosed
 host: leti-backend.onrender.com
 info:
   contact: {}
@@ -1711,6 +1850,382 @@ paths:
       summary: Register admin device
       tags:
       - Admin Devices
+  /admin/disputes:
+    get:
+      description: Returns a paginated list of disputes across all types (job, booking,
+        order) with aggregate stats. Filter by type and/or status.
+      parameters:
+      - description: 'Dispute type: job, booking, order (omit for all)'
+        in: query
+        name: type
+        type: string
+      - description: 'Filter by status: open, investigating, resolved_refund, resolved_release,
+          dismissed'
+        in: query
+        name: status
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20)'
+        in: query
+        name: limit
+        type: integer
+      - description: type=job|booking|order, status, page, limit
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              stats:
+                properties:
+                  investigating:
+                    type: integer
+                  open:
+                    type: integer
+                  resolved:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all disputes (admin)
+      tags:
+      - Admin / Disputes
+  /admin/disputes/{id}:
+    get:
+      description: Returns full detail for a single dispute including parties, reason,
+        evidence, escrow snapshot, admin notes, and resolution. Supply the dispute
+        type via the `type` query param.
+      parameters:
+      - description: Dispute UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+              type:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single dispute (admin)
+      tags:
+      - Admin / Disputes
+  /admin/disputes/{id}/decision:
+    post:
+      consumes:
+      - application/json
+      description: Issues a final decision on a dispute. Depending on the chosen action,
+        funds held in escrow are refunded to the payer, released to the payee, or
+        split. The dispute and parent record (job / booking / order) are updated accordingly
+        and both parties are notified.
+      parameters:
+      - description: Dispute UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      - description: Decision payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/support.DisputeDecisionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Invalid action, amount, or dispute already resolved
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Resolve a dispute (admin)
+      tags:
+      - Admin / Disputes
+  /admin/disputes/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Sets the status of a dispute to `open` or `investigating` and optionally
+        attaches admin notes. Use this to flag that a dispute is being looked into
+        before issuing a final decision.
+      parameters:
+      - description: Dispute UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      - description: Status update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/admins.AdminUpdateDisputeStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a dispute status (admin)
+      tags:
+      - Admin / Disputes
+  /admin/disputes/{id}/ticket:
+    get:
+      description: Returns the support ticket that was created for the given dispute
+        together with the full chronological message history. Returns 404 if no ticket
+        has been created yet.
+      parameters:
+      - description: Dispute UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/support.SupportTicket'
+              messages:
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: No ticket found for this dispute
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get the support ticket linked to a dispute (admin)
+      tags:
+      - Admin / Disputes
+    post:
+      consumes:
+      - application/json
+      description: Creates a support ticket linked to the specified dispute and assigns
+        it to the calling admin, changing the dispute status to `investigating`. If
+        a ticket already exists for the dispute, the existing ticket ID is returned
+        without creating a duplicate. The user who filed the dispute receives a push
+        notification and an in-app notification inviting them to the support chat.
+      parameters:
+      - description: Dispute UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      - description: Ticket options (subject and priority are optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/admins.AdminCreateDisputeTicketRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                $ref: '#/definitions/support.SupportTicket'
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Dispute not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Escalate a dispute to a live-chat support ticket (admin)
+      tags:
+      - Admin / Disputes
   /admin/jobs:
     get:
       description: Returns a paginated list of artisan jobs. Filterable by status,
@@ -5791,6 +6306,77 @@ paths:
       summary: Decline a booking (artisan only)
       tags:
       - Booking
+  /bookings/{id}/dispute:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Allows a client or artisan to file a dispute against the other
+        party for a booking. The booking must be completed or awaiting client confirmation
+        and must not already have an active dispute. Accepts multipart form data with
+        an optional evidence field (max 5 images). Filing a dispute freezes the escrow
+        payment pending admin resolution.
+      parameters:
+      - description: Booking UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for the dispute
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Evidence images (max 5)
+        in: formData
+        name: evidence
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              dispute_id:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: File a booking dispute
+      tags:
+      - Disputes
   /bookings/{id}/pay:
     post:
       consumes:
@@ -5952,6 +6538,420 @@ paths:
       summary: Get available slots for an artisan
       tags:
       - Booking
+  /calls/{call_id}:
+    get:
+      description: Returns full details of a call. The caller must be a participant.
+      parameters:
+      - description: Call UUID
+        in: path
+        name: call_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get call details
+      tags:
+      - Calls
+  /calls/{call_id}/accept:
+    post:
+      description: The callee accepts a ringing call. Both participants are notified
+        via WebSocket.
+      parameters:
+      - description: Call UUID
+        in: path
+        name: call_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Accept an incoming call
+      tags:
+      - Calls
+  /calls/{call_id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: The callee rejects a ringing call. The caller is notified via WebSocket.
+      parameters:
+      - description: Call UUID
+        in: path
+        name: call_id
+        required: true
+        type: string
+      - description: Optional reject reason
+        in: body
+        name: body
+        schema:
+          properties:
+            reason:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject an incoming call
+      tags:
+      - Calls
+  /calls/end:
+    post:
+      consumes:
+      - application/json
+      description: Either participant can end a call that is in ringing or accepted
+        state. The other participant is notified via WebSocket and the Stream room
+        is closed.
+      parameters:
+      - description: 'End request. reason: hangup | declined | missed | timeout |
+          network_error | failed'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            call_id:
+              type: string
+            reason:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: End an active call
+      tags:
+      - Calls
+  /calls/history:
+    get:
+      description: Returns a paginated list of calls for the authenticated user. Optionally
+        filter by context_type (booking|order) and context_id.
+      parameters:
+      - description: 'Filter: booking | order'
+        in: query
+        name: context_type
+        type: string
+      - description: Filter by specific booking or order UUID
+        in: query
+        name: context_id
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: array
+              meta:
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get call history
+      tags:
+      - Calls
+  /calls/start:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Initiates an audio-only call between two participants of a booking or order.
+        context_type must be "booking" (client↔artisan) or "order" (client↔owner).
+        No phone numbers are ever exposed — Stream handles the media layer.
+        A push notification and WebSocket event are sent to the callee.
+      parameters:
+      - description: Call request
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            callee_id:
+              type: string
+            client_call_id:
+              type: string
+            context_id:
+              type: string
+            context_type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Start a call
+      tags:
+      - Calls
+  /calls/token:
+    post:
+      consumes:
+      - application/json
+      description: Issues a time-limited Stream token for the authenticated participant
+        of a call. The caller must be either the caller or callee on the call.
+      parameters:
+      - description: Call UUID
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            call_id:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  api_key:
+                    type: string
+                  expires_at:
+                    type: string
+                  provider:
+                    type: string
+                  token:
+                    type: string
+                  user:
+                    type: object
+                type: object
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a Stream token for a call
+      tags:
+      - Calls
   /chat/conversations:
     get:
       description: Returns a paginated list of all conversations for the authenticated
@@ -6392,6 +7392,274 @@ paths:
       summary: Get saved / bookmarked properties
       tags:
       - Saved Listings
+  /disputes/bookings:
+    get:
+      description: Returns all booking disputes where the authenticated user is either
+        the filer or the respondent, ordered by most recent. Supports pagination via
+        page and limit query params.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my booking disputes
+      tags:
+      - Disputes
+  /disputes/jobs:
+    get:
+      description: Returns a paginated list of all job disputes filed by or against
+        the authenticated user.
+      parameters:
+      - description: 'Filter by status: open, investigating, resolved_refund, resolved_release,
+          dismissed'
+        in: query
+        name: status
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my job disputes
+      tags:
+      - Disputes
+  /disputes/orders:
+    get:
+      description: Returns all shortlet order disputes where the authenticated user
+        is either the filer or the respondent, ordered by most recent. Supports pagination
+        via page and limit query params.
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                type: array
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my order disputes
+      tags:
+      - Disputes
+  /disputes/ticket:
+    get:
+      description: Retrieves the support ticket and full message history for a dispute
+        the authenticated user filed. Also marks any unread admin messages as read.
+        Pass dispute_id and type as query params.
+      parameters:
+      - description: Dispute UUID
+        in: query
+        name: dispute_id
+        required: true
+        type: string
+      - description: 'Dispute type: job, booking, or order (default: job)'
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              messages:
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get my dispute support ticket
+      tags:
+      - Disputes
+  /jobs/{id}/dispute:
+    post:
+      consumes:
+      - application/json
+      description: Allows an authenticated user to file a dispute against a job they
+        are party to. Evidence images can be included.
+      parameters:
+      - description: Job UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dispute details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/disputes.FileDisputeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            properties:
+              data:
+                properties:
+                  created_at:
+                    type: string
+                  filed_by:
+                    type: string
+                  id:
+                    type: string
+                  job_id:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Dispute already exists for this job
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: File a job dispute
+      tags:
+      - Disputes
   /notifications/{id}:
     delete:
       description: Permanently deletes a single notification. The notification must
@@ -6873,6 +8141,77 @@ paths:
         only)
       tags:
       - Orders
+  /orders/{id}/dispute:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Allows a client or property owner to file a dispute for a shortlet
+        order. The order must be confirmed, checked-in, or completed and must not
+        already have an active dispute. Accepts multipart form data with an optional
+        evidence field (max 5 images). Filing a dispute freezes the escrow funds pending
+        admin resolution.
+      parameters:
+      - description: Order UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Reason for the dispute
+        in: formData
+        name: reason
+        required: true
+        type: string
+      - description: Evidence images (max 5)
+        in: formData
+        name: evidence
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              dispute_id:
+                type: string
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: File an order dispute
+      tags:
+      - Disputes
   /orders/{id}/reviews:
     post:
       consumes:
@@ -10154,6 +11493,68 @@ paths:
       summary: Connect to live support chat (WebSocket)
       tags:
       - Support
+  /system/health:
+    get:
+      description: Returns the health status of the server and its dependencies (database
+        and Redis). Returns 200 if all components are healthy, 503 if any are degraded.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              components:
+                properties:
+                  database:
+                    properties:
+                      latency:
+                        type: string
+                      status:
+                        type: string
+                    type: object
+                  redis:
+                    properties:
+                      latency:
+                        type: string
+                      status:
+                        type: string
+                    type: object
+                type: object
+              status:
+                type: string
+              uptime:
+                type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              components:
+                properties:
+                  database:
+                    properties:
+                      error:
+                        type: string
+                      status:
+                        type: string
+                    type: object
+                  redis:
+                    properties:
+                      error:
+                        type: string
+                      status:
+                        type: string
+                    type: object
+                type: object
+              status:
+                type: string
+              uptime:
+                type: string
+            type: object
+      summary: System health check
+      tags:
+      - System
   /wallet/fund:
     post:
       consumes:

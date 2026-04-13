@@ -12,6 +12,7 @@ import (
 
 	"leti_server/internal/api/handlers"
 	adminHandlers "leti_server/internal/api/handlers/admins"
+	"leti_server/internal/api/handlers/calls"
 	chatHandler "leti_server/internal/api/handlers/chat"
 	paymentwebhook "leti_server/internal/api/handlers/payment_webhook"
 	shortletchathandler "leti_server/internal/api/handlers/shortlet_chat"
@@ -86,6 +87,8 @@ func main() {
 
 	webhookCtx, webhookCancel := context.WithCancel(context.Background())
 
+	go calls.StartRingingTimeoutWorker(webhookCtx)
+
 	// Start cron jobs
 	cleanupCron := cronjobs.StartCronJobs()
 	defer cleanupCron.Stop()
@@ -123,6 +126,7 @@ func main() {
 		"/api/v1/agents/reset-password/reset",
 		"/api/v1/webhooks/paystack",
 		"/api/v1/wallets/verify/payment",
+		"/api/v1/system/health",
 	)
 
 	secureMux := jwtMiddleware(mw.SecurityHeaders(mw.ResponseTimeMiddleware(router)))

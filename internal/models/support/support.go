@@ -37,16 +37,19 @@ const (
 )
 
 type SupportTicket struct {
-	ID              uuid.UUID      `json:"id"`
-	UserID          uuid.UUID      `json:"user_id"`
-	AssignedAdminID *uuid.UUID     `json:"assigned_admin_id,omitempty"`
-	Subject         string         `json:"subject"`
-	Category        TicketCategory `json:"category"`
-	Status          TicketStatus   `json:"status"`
-	Priority        string         `json:"priority"`
-	ResolvedAt      *time.Time     `json:"resolved_at,omitempty"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID               uuid.UUID      `json:"id"`
+	UserID           uuid.UUID      `json:"user_id"`
+	JobDisputeID     *uuid.UUID     `json:"job_dispute_id,omitempty"`
+	BookingDisputeID *uuid.UUID     `json:"booking_dispute_id,omitempty"`
+	OrderDisputeID   *uuid.UUID     `json:"order_dispute_id,omitempty"`
+	AssignedAdminID  *uuid.UUID     `json:"assigned_admin_id,omitempty"`
+	Subject          string         `json:"subject"`
+	Category         TicketCategory `json:"category"`
+	Status           TicketStatus   `json:"status"`
+	Priority         string         `json:"priority"`
+	ResolvedAt       *time.Time     `json:"resolved_at,omitempty"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
 }
 
 type SupportMessage struct {

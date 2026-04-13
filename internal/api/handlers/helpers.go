@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"leti_server/internal/api/services/notifications"
+	"leti_server/internal/models/chat"
 	shortletModels "leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/cache"
@@ -1006,4 +1007,10 @@ func ContainsStr(s, substr string) bool {
 			}
 			return false
 		}())
+}
+
+// buildWSPayload marshals an outgoing WebSocket message.
+func BuildWSPayload(msgType string, payload interface{}) []byte {
+	b, _ := json.Marshal(chat.OutgoingWS{Type: msgType, Payload: payload})
+	return b
 }
