@@ -8,7 +8,7 @@ import (
 func shortletRouter() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// ── Properties ──────────────────────────────────────────────────────────
+	// ── Properties ────────────────────────
 	mux.HandleFunc("GET /shortlet/properties", shortlet.ListProperties)
 	mux.HandleFunc("POST /shortlet/properties", shortlet.CreateProperty)
 	mux.HandleFunc("GET /shortlet/properties/{id}", shortlet.GetProperty)
@@ -16,24 +16,25 @@ func shortletRouter() *http.ServeMux {
 	mux.HandleFunc("DELETE /shortlet/properties/{id}", shortlet.DeleteProperty)
 	mux.HandleFunc("GET /shortlet/owners/me/properties", shortlet.GetMyProperties)
 
-	// ── Draft listings ───────────────────────────────────────────────────────
+	// ── Draft listings ─────────────────────
 	mux.HandleFunc("POST /shortlet/properties/draft", shortlet.CreatePropertyDraft)
 	mux.HandleFunc("GET /shortlet/owners/me/properties/drafts", shortlet.GetMyDraftProperties)
 	mux.HandleFunc("PATCH /shortlet/properties/{id}/publish", shortlet.PublishProperty)
 
-	// ── Availability & Calendar ──────────────────────────────────────────────
-	mux.HandleFunc("POST /shortlet/properties/{id}/availability", shortlet.SetPropertyAvailability)
-	mux.HandleFunc("DELETE /shortlet/properties/{id}/availability/{avail_id}", shortlet.DeletePropertyAvailability)
+	// ── Availability — blocked-date management (owner)
 	mux.HandleFunc("POST /shortlet/properties/{id}/availability/block", shortlet.BlockPropertyDate)
+	mux.HandleFunc("POST /shortlet/properties/{id}/availability/block-range", shortlet.BlockPropertyDateRange)
 	mux.HandleFunc("DELETE /shortlet/properties/{id}/availability/block/{date}", shortlet.UnblockPropertyDate)
-	//  (public)
+	mux.HandleFunc("GET /shortlet/properties/{id}/blocked-dates", shortlet.GetBlockedDates)
+
+	// ── Calendar — public availability view
 	mux.HandleFunc("GET /shortlet/properties/{id}/calendar", shortlet.GetPropertyCalendar)
 
-	// ── Saved Listings ───────────────────────────────────────────────────────
+	// ── Saved Listings ─────────────────────
 	mux.HandleFunc("POST /shortlet/properties/{id}/save", shortlet.ToggleSavedListing)
 	mux.HandleFunc("GET /shortlet/clients/me/saved-listings", shortlet.GetSavedListings)
 
-	// ── Orders ───────────────────────────────────────────────────────────────
+	// ── Orders ─────────────────────────────
 	mux.HandleFunc("POST /shortlet/orders/preview", shortlet.PreviewOrder)
 	mux.HandleFunc("POST /shortlet/orders", shortlet.CreateOrder)
 	mux.HandleFunc("GET /shortlet/orders", shortlet.GetMyOrders)
@@ -42,10 +43,9 @@ func shortletRouter() *http.ServeMux {
 	mux.HandleFunc("PATCH /shortlet/orders/{id}/check-in", shortlet.CheckInOrder)
 	mux.HandleFunc("PATCH /shortlet/orders/{id}/check-out", shortlet.CheckOutOrder)
 
-	// ── Reviews ──────────────────────────────────────────────────────────────
+	// ── Reviews ────────────────────────────
 	mux.HandleFunc("POST /shortlet/orders/{id}/reviews", shortlet.CreatePropertyReview)
 	mux.HandleFunc("POST /shortlet/reviews/{id}/reply", shortlet.ReplyToPropertyReview)
-	//  (public)
 	mux.HandleFunc("GET /shortlet/properties/{id}/reviews", shortlet.GetPropertyReviews)
 
 	return mux

@@ -925,29 +925,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  shortlet.PropertyAvailability:
-    properties:
-      available_from:
-        description: YYYY-MM-DD
-        type: string
-      available_to:
-        type: string
-      check_in_time:
-        description: HH:MM
-        type: string
-      check_out_time:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      property_id:
-        type: string
-      updated_at:
-        type: string
-    type: object
   shortlet.PropertyAvailabilityOverride:
     properties:
       blocked_date:
@@ -971,21 +948,8 @@ definitions:
       status:
         type: string
     type: object
-  shortlet.PropertyAvailabilityResponse:
-    properties:
-      availability:
-        $ref: '#/definitions/shortlet.PropertyAvailability'
-      message:
-        type: string
-      status:
-        type: string
-    type: object
   shortlet.PropertyCalendarResponse:
     properties:
-      check_in_time:
-        type: string
-      check_out_time:
-        type: string
       count:
         type: integer
       data:
@@ -10667,9 +10631,9 @@ paths:
       tags:
       - Properties
     get:
-      description: Returns full details of a property, including its review summary.
-        Clients can access active listings; owners can access their own regardless
-        of status.
+      description: Returns full details of a property including its review summary
+        and owner profile (name, avatar, bio). Clients can access active listings;
+        owners can access their own regardless of status.
       parameters:
       - description: Property UUID
         in: path
@@ -10804,112 +10768,21 @@ paths:
       summary: Update a property listing
       tags:
       - Properties
-  /properties/{id}/availability:
-    post:
-      consumes:
-      - application/json
-      description: Creates or updates an availability date range for the property.
-        Multiple non-overlapping windows are allowed (e.g. different months). If a
-        range with the same from/to already exists it is updated in place.
-      parameters:
-      - description: Property UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Dates in YYYY-MM-DD, times in HH:MM (default 14:00 / 11:00)
-        in: body
-        name: body
-        required: true
-        schema:
-          properties:
-            available_from:
-              type: string
-            available_to:
-              type: string
-            check_in_time:
-              type: string
-            check_out_time:
-              type: string
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/shortlet.PropertyAvailabilityResponse'
-        "400":
-          description: Bad Request
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Set availability window for a property
-      tags:
-      - Properties / Availability
-  /properties/{id}/availability/{avail_id}:
-    delete:
-      description: Deactivates an availability window. Does not affect existing confirmed
-        orders.
-      parameters:
-      - description: Property UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Availability UUID
-        in: path
-        name: avail_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            properties:
-              message:
-                type: string
-              status:
-                type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            properties:
-              error:
-                type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Remove an availability window
-      tags:
-      - Properties / Availability
   /properties/{id}/availability/block:
     post:
       consumes:
       - application/json
-      description: Adds a date-level override that makes a day unavailable (e.g. personal
-        use, maintenance). Cannot block a date that has a confirmed booking.
+      description: Marks a specific date as unavailable on the property calendar (e.g.
+        personal use, maintenance). All dates are available by default; owners only
+        need to explicitly block ones they cannot accept bookings for. Cannot block
+        a date that already has a confirmed or checked-in booking.
       parameters:
       - description: Property UUID
         in: path
         name: id
         required: true
         type: string
-      - description: date in YYYY-MM-DD
+      - description: date in YYYY-MM-DD, reason optional
         in: body
         name: body
         required: true
@@ -10934,6 +10807,13 @@ paths:
               error:
                 type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
         "409":
           description: Conflict
           schema:
@@ -10946,10 +10826,83 @@ paths:
       summary: Block a specific date
       tags:
       - Properties / Availability
+  /properties/{id}/availability/block-range:
+    post:
+      consumes:
+      - application/json
+      description: Marks every date from `from` to `to` inclusive as unavailable.
+        Dates that already have confirmed or checked-in bookings are skipped and reported
+        separately — they do NOT cause the whole request to fail. Past dates are also
+        skipped.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: from/to in YYYY-MM-DD (max 365-day range), reason optional
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            from:
+              type: string
+            reason:
+              type: string
+            to:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              blocked:
+                items:
+                  type: string
+                type: array
+              message:
+                type: string
+              skipped:
+                items:
+                  type: string
+                type: array
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Block a range of dates
+      tags:
+      - Properties / Availability
   /properties/{id}/availability/block/{date}:
     delete:
-      description: Removes a previously blocked date override, making the day available
-        again (subject to the active availability windows).
+      description: Removes a previously blocked date, making it available for bookings
+        again.
       parameters:
       - description: Property UUID
         in: path
@@ -10985,12 +10938,66 @@ paths:
       summary: Unblock a specific date
       tags:
       - Properties / Availability
+  /properties/{id}/blocked-dates:
+    get:
+      description: Returns all dates the owner has explicitly blocked. Clients should
+        use GET /properties/{id}/calendar instead, which merges blocked dates and
+        existing bookings into a single availability view.
+      parameters:
+      - description: Property UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter from date YYYY-MM-DD (inclusive)
+        in: query
+        name: from
+        type: string
+      - description: Filter to date YYYY-MM-DD (inclusive)
+        in: query
+        name: to
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  $ref: '#/definitions/shortlet.PropertyAvailabilityOverride'
+                type: array
+              status:
+                type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all blocked dates for a property (owner only)
+      tags:
+      - Properties / Availability
   /properties/{id}/calendar:
     get:
       description: Returns a day-by-day availability breakdown for a property over
-        a date range (max 90 days). Each day indicates whether it is available, blocked
-        by the owner, or already booked. Designed to power a calendar/date-picker
-        UI.
+        a date range (max 90 days). Every date is available by default; it becomes
+        unavailable when the owner has explicitly blocked it OR it falls inside an
+        existing booking. Designed to power a date-picker UI.
       parameters:
       - description: Property UUID
         in: path

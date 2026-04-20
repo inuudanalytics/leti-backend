@@ -82,6 +82,10 @@ CREATE TABLE properties (
 
     deleted_at          TIMESTAMPTZ     DEFAULT NULL,
 
+     
+    check_in_time  TIME NOT NULL DEFAULT '14:00',
+    check_out_time TIME NOT NULL DEFAULT '11:00',
+
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
 

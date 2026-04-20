@@ -1415,11 +1415,11 @@ func DeleteProperty(w http.ResponseWriter, r *http.Request) {
 
 // GetProperty godoc
 // @Summary      Get a single property
-// @Description  Returns full details of a property, including its review summary. Clients can access active listings; owners can access their own regardless of status.
+// @Description  Returns full details of a property including its review summary and owner profile (name, avatar, bio). Clients can access active listings; owners can access their own regardless of status.
 // @Tags         Properties
 // @Produce      json
 // @Param        id  path  string  true  "Property UUID"
-// @Success 200 {object} PropertyDetailResponse
+// @Success      200  {object}  PropertyDetailResponse
 // @Failure      404  {object}  object{error=string}
 // @Router       /properties/{id} [get]
 // @Security     BearerAuth
@@ -1482,7 +1482,8 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 		       p.avg_rating, p.review_count,
 		       p.created_at, p.updated_at,
 		       u.first_name || ' ' || u.last_name AS owner_name,
-		       u.avatar AS owner_avatar
+		       u.avatar AS owner_avatar,
+		       u.bio AS owner_bio
 		FROM properties p
 		JOIN users u ON u.id = p.owner_id
 		WHERE p.id = $1 AND p.deleted_at IS NULL
@@ -1497,6 +1498,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 	var prop shortlet.Property
 	var imagesRaw, amenitiesRaw, rulesRaw, ownerAvatarRaw []byte
 	var ownerName string
+	var ownerBio *string
 
 	args := []interface{}{propID}
 	if role == "owner" {
@@ -1514,6 +1516,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 		&prop.AvgRating, &prop.ReviewCount,
 		&prop.CreatedAt, &prop.UpdatedAt,
 		&ownerName, &ownerAvatarRaw,
+		&ownerBio,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -1550,6 +1553,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 		"id":     prop.OwnerID,
 		"name":   ownerName,
 		"avatar": ownerAvatarURL,
+		"bio":    ownerBio,
 	}
 
 	resp := map[string]interface{}{
@@ -1719,6 +1723,7 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 	checkin := q.Get("checkin")
 	checkout := q.Get("checkout")
 	if checkin != "" && checkout != "" {
+
 		conditions = append(conditions, fmt.Sprintf(`
 			NOT EXISTS (
 				SELECT 1 FROM orders o
@@ -1732,12 +1737,11 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 		argIdx += 2
 
 		conditions = append(conditions, fmt.Sprintf(`
-			EXISTS (
-				SELECT 1 FROM property_availability pa
-				WHERE pa.property_id = p.id
-				  AND pa.is_active = TRUE
-				  AND pa.available_from <= $%d
-				  AND pa.available_to >= $%d
+			NOT EXISTS (
+				SELECT 1 FROM property_availability_overrides pao
+				WHERE pao.property_id = p.id
+				  AND pao.blocked_date >= $%d
+				  AND pao.blocked_date < $%d
 			)
 		`, argIdx, argIdx+1))
 		args = append(args, checkin, checkout)

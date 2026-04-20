@@ -6,6 +6,8 @@ CREATE TABLE orders (
 
     check_in_date       DATE            NOT NULL,
     check_out_date      DATE            NOT NULL,
+    check_in_time       TIME NOT NULL DEFAULT '14:00',
+    check_out_time      TIME NOT NULL DEFAULT '11:00',
     num_nights          SMALLINT        NOT NULL CHECK (num_nights > 0),
     num_adults          SMALLINT        NOT NULL DEFAULT 1 CHECK (num_adults >= 1),
     num_children        SMALLINT        NOT NULL DEFAULT 0 CHECK (num_children >= 0),

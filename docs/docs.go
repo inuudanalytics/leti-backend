@@ -14479,7 +14479,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns full details of a property, including its review summary. Clients can access active listings; owners can access their own regardless of status.",
+                "description": "Returns full details of a property including its review summary and owner profile (name, avatar, bio). Clients can access active listings; owners can access their own regardless of status.",
                 "produces": [
                     "application/json"
                 ],
@@ -14765,88 +14765,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/properties/{id}/availability": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Creates or updates an availability date range for the property. Multiple non-overlapping windows are allowed (e.g. different months). If a range with the same from/to already exists it is updated in place.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Properties / Availability"
-                ],
-                "summary": "Set availability window for a property",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Property UUID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Dates in YYYY-MM-DD, times in HH:MM (default 14:00 / 11:00)",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "available_from": {
-                                    "type": "string"
-                                },
-                                "available_to": {
-                                    "type": "string"
-                                },
-                                "check_in_time": {
-                                    "type": "string"
-                                },
-                                "check_out_time": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/shortlet.PropertyAvailabilityResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "error": {
-                                    "type": "string"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/properties/{id}/availability/block": {
             "post": {
                 "security": [
@@ -14854,7 +14772,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Adds a date-level override that makes a day unavailable (e.g. personal use, maintenance). Cannot block a date that has a confirmed booking.",
+                "description": "Marks a specific date as unavailable on the property calendar (e.g. personal use, maintenance). All dates are available by default; owners only need to explicitly block ones they cannot accept bookings for. Cannot block a date that already has a confirmed or checked-in booking.",
                 "consumes": [
                     "application/json"
                 ],
@@ -14874,7 +14792,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "date in YYYY-MM-DD",
+                        "description": "date in YYYY-MM-DD, reason optional",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -14909,8 +14827,129 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/properties/{id}/availability/block-range": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Marks every date from ` + "`" + `from` + "`" + ` to ` + "`" + `to` + "`" + ` inclusive as unavailable. Dates that already have confirmed or checked-in bookings are skipped and reported separately — they do NOT cause the whole request to fail. Past dates are also skipped.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Properties / Availability"
+                ],
+                "summary": "Block a range of dates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Property UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "from/to in YYYY-MM-DD (max 365-day range), reason optional",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "from": {
+                                    "type": "string"
+                                },
+                                "reason": {
+                                    "type": "string"
+                                },
+                                "to": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "blocked": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "message": {
+                                    "type": "string"
+                                },
+                                "skipped": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -14930,7 +14969,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Removes a previously blocked date override, making the day available again (subject to the active availability windows).",
+                "description": "Removes a previously blocked date, making it available for bookings again.",
                 "produces": [
                     "application/json"
                 ],
@@ -14983,21 +15022,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/properties/{id}/availability/{avail_id}": {
-            "delete": {
+        "/properties/{id}/blocked-dates": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deactivates an availability window. Does not affect existing confirmed orders.",
+                "description": "Returns all dates the owner has explicitly blocked. Clients should use GET /properties/{id}/calendar instead, which merges blocked dates and existing bookings into a single availability view.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Properties / Availability"
                 ],
-                "summary": "Remove an availability window",
+                "summary": "List all blocked dates for a property (owner only)",
                 "parameters": [
                     {
                         "type": "string",
@@ -15008,10 +15047,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Availability UUID",
-                        "name": "avail_id",
-                        "in": "path",
-                        "required": true
+                        "description": "Filter from date YYYY-MM-DD (inclusive)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date YYYY-MM-DD (inclusive)",
+                        "name": "to",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -15020,10 +15064,27 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "properties": {
-                                "message": {
-                                    "type": "string"
+                                "count": {
+                                    "type": "integer"
+                                },
+                                "data": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/shortlet.PropertyAvailabilityOverride"
+                                    }
                                 },
                                 "status": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "error": {
                                     "type": "string"
                                 }
                             }
@@ -15045,7 +15106,7 @@ const docTemplate = `{
         },
         "/properties/{id}/calendar": {
             "get": {
-                "description": "Returns a day-by-day availability breakdown for a property over a date range (max 90 days). Each day indicates whether it is available, blocked by the owner, or already booked. Designed to power a calendar/date-picker UI.",
+                "description": "Returns a day-by-day availability breakdown for a property over a date range (max 90 days). Every date is available by default; it becomes unavailable when the owner has explicitly blocked it OR it falls inside an existing booking. Designed to power a date-picker UI.",
                 "produces": [
                     "application/json"
                 ],
@@ -18325,40 +18386,6 @@ const docTemplate = `{
                 }
             }
         },
-        "shortlet.PropertyAvailability": {
-            "type": "object",
-            "properties": {
-                "available_from": {
-                    "description": "YYYY-MM-DD",
-                    "type": "string"
-                },
-                "available_to": {
-                    "type": "string"
-                },
-                "check_in_time": {
-                    "description": "HH:MM",
-                    "type": "string"
-                },
-                "check_out_time": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "property_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
         "shortlet.PropertyAvailabilityOverride": {
             "type": "object",
             "properties": {
@@ -18394,29 +18421,9 @@ const docTemplate = `{
                 }
             }
         },
-        "shortlet.PropertyAvailabilityResponse": {
-            "type": "object",
-            "properties": {
-                "availability": {
-                    "$ref": "#/definitions/shortlet.PropertyAvailability"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
         "shortlet.PropertyCalendarResponse": {
             "type": "object",
             "properties": {
-                "check_in_time": {
-                    "type": "string"
-                },
-                "check_out_time": {
-                    "type": "string"
-                },
                 "count": {
                     "type": "integer"
                 },
