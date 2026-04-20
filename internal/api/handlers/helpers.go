@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"leti_server/internal/api/services/notifications"
+	adsModels "leti_server/internal/models/ads_center"
 	"leti_server/internal/models/chat"
 	shortletModels "leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
@@ -1013,4 +1014,90 @@ func ContainsStr(s, substr string) bool {
 func BuildWSPayload(msgType string, payload interface{}) []byte {
 	b, _ := json.Marshal(chat.OutgoingWS{Type: msgType, Payload: payload})
 	return b
+}
+
+// durationToDays maps a DurationType to the number of calendar days.
+func DurationToDays(d adsModels.DurationType) (int, error) {
+	switch d {
+	case adsModels.DurationDaily:
+		return 1, nil
+	case adsModels.DurationWeekly:
+		return 7, nil
+	case adsModels.DurationBiweekly:
+		return 14, nil
+	case adsModels.DurationMonthly:
+		return 30, nil
+	}
+	return 0, fmt.Errorf("invalid duration_type: %s", d)
+}
+
+func ComputeConversionRate(views, clicks int64) float64 {
+	if views == 0 {
+		return 0
+	}
+	return float64(clicks) / float64(views) * 100
+}
+
+func FetchCampaignByID(ctx context.Context, db interface {
+	QueryRow(context.Context, string, ...interface{}) pgx.Row
+}, campaignID uuid.UUID) (*adsModels.CampaignWithDetail, error) {
+	var c adsModels.CampaignWithDetail
+	var desc, pausedReason, lastCharged, payRef *string
+	var propName, propCity, propState *string
+	var artisanName, svcName, catName, artisanCity *string
+	var rentPrice *float64
+
+	err := db.QueryRow(ctx, `
+		SELECT
+			c.id, c.user_id, c.target_type,
+			c.property_id, c.artisan_service_id,
+			c.title, c.description, c.image_url,
+			c.duration_type, c.num_days,
+			c.start_date::TEXT, c.end_date::TEXT,
+			c.mode, c.daily_price, c.total_budget, c.amount_spent,
+			c.payment_method, c.payment_status, c.payment_reference,
+			c.status, c.total_views, c.total_clicks,
+			c.paused_reason, c.last_charged_date,
+			c.created_at, c.updated_at,
+			p.name, p.price_per_night, p.city, p.state,
+			u.first_name || ' ' || u.last_name,
+			svc.name, cat.name, aa.city
+		FROM ad_campaigns c
+		LEFT JOIN properties       p   ON p.id  = c.property_id
+		LEFT JOIN artisan_services svc ON svc.id = c.artisan_service_id
+		LEFT JOIN job_categories   cat ON cat.id = svc.category_id
+		LEFT JOIN users            u   ON u.id   = c.user_id
+		LEFT JOIN artisan_address  aa  ON aa.artisan_id = c.user_id AND aa.is_primary = TRUE
+		WHERE c.id = $1
+	`, campaignID).Scan(
+		&c.ID, &c.UserID, &c.TargetType,
+		&c.PropertyID, &c.ArtisanServiceID,
+		&c.Title, &desc, &c.ImageURL,
+		&c.DurationType, &c.NumDays,
+		&c.StartDate, &c.EndDate,
+		&c.Mode, &c.DailyPrice, &c.TotalBudget, &c.AmountSpent,
+		&c.PaymentMethod, &c.PaymentStatus, &payRef,
+		&c.Status, &c.TotalViews, &c.TotalClicks,
+		&pausedReason, &lastCharged,
+		&c.CreatedAt, &c.UpdatedAt,
+		&propName, &rentPrice, &propCity, &propState,
+		&artisanName, &svcName, &catName, &artisanCity,
+	)
+	if err != nil {
+		return nil, err
+	}
+	c.Description = desc
+	c.PaymentReference = payRef
+	c.PausedReason = pausedReason
+	c.LastChargedDate = lastCharged
+	c.ConversionRate = ComputeConversionRate(c.TotalViews, c.TotalClicks)
+	c.PropertyName = propName
+	c.RentPrice = rentPrice
+	c.PropertyCity = propCity
+	c.PropertyState = propState
+	c.ArtisanName = artisanName
+	c.ServiceName = svcName
+	c.CategoryName = catName
+	c.ArtisanCity = artisanCity
+	return &c, nil
 }

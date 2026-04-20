@@ -1408,6 +1408,160 @@ paths:
       summary: Update admin
       tags:
       - Admin Management
+  /admin/ads/campaigns:
+    get:
+      description: Returns all ad campaigns across all users with pagination and optional
+        filters.
+      parameters:
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: artisan | owner
+        in: query
+        name: target_type
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  type: object
+                type: array
+              pagination:
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin — list all campaigns
+      tags:
+      - Admin Ads
+  /admin/ads/campaigns/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Allows admin to force-activate, suspend, or cancel any campaign.
+      parameters:
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New status and optional reason
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            reason:
+              type: string
+            status:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin — force-update campaign status
+      tags:
+      - Admin Ads
+  /admin/ads/pricing:
+    patch:
+      consumes:
+      - application/json
+      description: Sets the daily ad price for artisans and/or property owners. Requires
+        super_admin or admin role.
+      parameters:
+      - description: Prices in NGN
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            artisan_daily_price:
+              type: number
+            owner_daily_price:
+              type: number
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin — update ad daily prices
+      tags:
+      - Admin Ads
+  /admin/ads/stats:
+    get:
+      description: Returns platform-wide ad revenue, campaign counts, and analytics.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin — platform-wide ad statistics
+      tags:
+      - Admin Ads
   /admin/audit-logs:
     get:
       description: Returns a paginated list of admin audit logs. Filterable by admin_id,
@@ -3213,6 +3367,432 @@ paths:
       summary: Verify withdrawal transfer
       tags:
       - Admin Finance
+  /ads/campaigns:
+    get:
+      description: Returns all campaigns for the authenticated user with pagination.
+        Filter by status using ?status=active.
+      parameters:
+      - description: 'Filter by status: pending|active|paused|auto_paused|completed|cancelled'
+        in: query
+        name: status
+        type: string
+      - description: Page (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              count:
+                type: integer
+              data:
+                items:
+                  properties:
+                    amount_spent:
+                      type: number
+                    conversion_rate:
+                      type: number
+                    daily_price:
+                      type: number
+                    end_date:
+                      type: string
+                    id:
+                      type: string
+                    start_date:
+                      type: string
+                    status:
+                      type: string
+                    target_type:
+                      type: string
+                    title:
+                      type: string
+                    total_clicks:
+                      type: integer
+                    total_views:
+                      type: integer
+                  type: object
+                type: array
+              pagination:
+                properties:
+                  limit:
+                    type: integer
+                  page:
+                    type: integer
+                  total:
+                    type: integer
+                  total_pages:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List user campaigns
+      tags:
+      - Ads
+    post:
+      consumes:
+      - multipart/form-data
+      description: Creates a new ad campaign for the authenticated artisan or owner.
+        Accepts multipart/form-data with an `image` file and JSON fields. For wallet
+        payment the first day's charge is deducted immediately. For Paystack a checkout
+        URL is returned.
+      parameters:
+      - description: Ad banner image
+        in: formData
+        name: image
+        required: true
+        type: file
+      - description: Ad title (max 150 chars)
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: Ad description
+        in: formData
+        name: description
+        type: string
+      - description: daily | weekly | biweekly | monthly
+        in: formData
+        name: duration_type
+        required: true
+        type: string
+      - description: one_time | recurring
+        in: formData
+        name: mode
+        required: true
+        type: string
+      - description: YYYY-MM-DD or 'now'
+        in: formData
+        name: start_date
+        required: true
+        type: string
+      - description: wallet | paystack
+        in: formData
+        name: payment_method
+        required: true
+        type: string
+      - description: UUID of property (owners only)
+        in: formData
+        name: property_id
+        type: string
+      - description: UUID of artisan service (artisans only)
+        in: formData
+        name: artisan_service_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              campaign:
+                properties:
+                  daily_price:
+                    type: number
+                  end_date:
+                    type: string
+                  id:
+                    type: string
+                  start_date:
+                    type: string
+                  status:
+                    type: string
+                  title:
+                    type: string
+                  total_budget:
+                    type: number
+                type: object
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "402":
+          description: Payment Required
+          schema:
+            properties:
+              code:
+                type: string
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create an ad campaign
+      tags:
+      - Ads
+  /ads/campaigns/{id}:
+    get:
+      description: Returns full details of a single campaign including daily charge
+        history.
+      parameters:
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              charges:
+                items:
+                  properties:
+                    amount:
+                      type: number
+                    charge_date:
+                      type: string
+                    failure_reason:
+                      type: string
+                    id:
+                      type: string
+                    status:
+                      type: string
+                  type: object
+                type: array
+              data:
+                properties:
+                  amount_spent:
+                    type: number
+                  conversion_rate:
+                    type: number
+                  daily_price:
+                    type: number
+                  end_date:
+                    type: string
+                  id:
+                    type: string
+                  mode:
+                    type: string
+                  payment_method:
+                    type: string
+                  payment_status:
+                    type: string
+                  start_date:
+                    type: string
+                  status:
+                    type: string
+                  target_type:
+                    type: string
+                  title:
+                    type: string
+                  total_budget:
+                    type: number
+                  total_clicks:
+                    type: integer
+                  total_views:
+                    type: integer
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get campaign details
+      tags:
+      - Ads
+  /ads/campaigns/{id}/analytics:
+    get:
+      description: Returns daily view/click breakdown for a campaign over its lifetime.
+      parameters:
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Campaign analytics
+      tags:
+      - Ads
+  /ads/campaigns/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Allows the user to suspend, resume, or cancel a campaign. Admin
+        auto-pauses are handled by the system.
+      parameters:
+      - description: Campaign UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'action: suspend | resume | cancel'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            action:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              message:
+                type: string
+              status:
+                type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update campaign status
+      tags:
+      - Ads
+  /ads/dashboard:
+    get:
+      description: Returns aggregate metrics and active campaigns for the authenticated
+        user (artisan or owner).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                properties:
+                  active_campaigns:
+                    items:
+                      properties:
+                        conversion_rate:
+                          type: number
+                        id:
+                          type: string
+                        status:
+                          type: string
+                        title:
+                          type: string
+                        total_clicks:
+                          type: integer
+                        total_views:
+                          type: integer
+                      type: object
+                    type: array
+                  metrics:
+                    properties:
+                      active_campaigns:
+                        type: integer
+                      conversion_rate:
+                        type: number
+                      total_clicks:
+                        type: integer
+                      total_spent:
+                        type: number
+                      total_views:
+                        type: integer
+                    type: object
+                type: object
+              status:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ads dashboard
+      tags:
+      - Ads
+  /ads/events:
+    post:
+      consumes:
+      - application/json
+      description: Records a view or click event for an ad campaign. Used by the frontend
+        when an ad is displayed or interacted with. Viewer is extracted from the auth
+        token if provided.
+      parameters:
+      - description: 'event_type: view | click'
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            campaign_id:
+              type: string
+            event_type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+      summary: Record an ad impression or click
+      tags:
+      - Ads
+  /ads/pricing:
+    get:
+      description: Returns the admin-configured daily ad prices for artisans and property
+        owners, along with pre-computed totals per duration.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              data:
+                type: object
+              status:
+                type: string
+            type: object
+      summary: Get current ad pricing
+      tags:
+      - Ads
   /artisan-reviews/{id}/replies:
     get:
       description: Returns all replies on a specific review, ordered oldest first.

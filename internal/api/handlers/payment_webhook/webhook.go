@@ -205,7 +205,7 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 		}
 		defer tx.Rollback(procCtx)
 
-		var orderIDForNotif uuid.UUID // only populated for order_payment
+		var orderIDForNotif uuid.UUID
 
 		switch transactionType {
 		case "credit":
@@ -216,6 +216,8 @@ func processWebhookEvent(db *pgxpool.Pool, reference string) {
 			processingErr = handleBookingPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
 		case "order_payment":
 			orderIDForNotif, processingErr = handleOrderPayment(procCtx, tx, payload.Data.Metadata, amountNaira, reference)
+		case "ad_payment":
+			processingErr = handleAdPayment(procCtx, tx, db, payload.Data.Metadata, amountNaira, reference)
 		default:
 			markWebhookFailed(db, reference, fmt.Sprintf("unknown transaction_type: %s", transactionType))
 			return
@@ -1061,4 +1063,251 @@ func retryFailedWebhooks(db *pgxpool.Pool) {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+func handleAdPayment(
+	ctx context.Context,
+	tx pgx.Tx,
+	db *pgxpool.Pool,
+	metadata map[string]interface{},
+	amountNaira int,
+	reference string,
+) error {
+	userIDStr, _ := metadata["user_id"].(string)
+	campaignIDStr, _ := metadata["campaign_id"].(string)
+
+	if userIDStr == "" || campaignIDStr == "" {
+		return fmt.Errorf("ad_payment: user_id or campaign_id missing in metadata")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return fmt.Errorf("ad_payment: invalid user_id: %v", err)
+	}
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		return fmt.Errorf("ad_payment: invalid campaign_id: %v", err)
+	}
+
+	var alreadyPaid bool
+	if err := tx.QueryRow(ctx, `
+		SELECT payment_status = 'paid'
+		FROM ad_campaigns WHERE id = $1
+	`, campaignID).Scan(&alreadyPaid); err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("ad_payment: campaign %s not found", campaignID)
+		}
+		return fmt.Errorf("ad_payment: idempotency check: %w", err)
+	}
+	if alreadyPaid {
+		return nil
+	}
+
+	today := time.Now().Format("2006-01-02")
+	var startDate string
+	var totalBudget float64
+	if err := tx.QueryRow(ctx,
+		`SELECT start_date::TEXT, total_budget FROM ad_campaigns WHERE id = $1`, campaignID,
+	).Scan(&startDate, &totalBudget); err != nil {
+		return fmt.Errorf("ad_payment: fetch campaign: %w", err)
+	}
+
+	newStatus := "pending"
+	if startDate == today {
+		newStatus = "active"
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE ad_campaigns
+		SET payment_status    = 'paid',
+		    payment_reference = $1,
+		    status            = $2,
+		    updated_at        = NOW()
+		WHERE id = $3
+	`, reference, newStatus, campaignID); err != nil {
+		return fmt.Errorf("ad_payment: update campaign: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO transactions (user_id, transaction_type, reference, amount, description, status)
+		VALUES ($1, 'debit', $2, $3, $4, 'success')
+		ON CONFLICT (reference) DO NOTHING
+	`, userID, reference, amountNaira,
+		fmt.Sprintf("Paystack payment for ad campaign %s", campaignID),
+	); err != nil {
+		return fmt.Errorf("ad_payment: record transaction: %w", err)
+	}
+
+	go func(userID, campaignID uuid.UUID, status string) {
+		bgCtx := context.Background()
+
+		statusMsg := "and will activate on your scheduled start date"
+		if status == "active" {
+			statusMsg = "and is now active"
+		}
+
+		_ = utils.CreateNotification(bgCtx, userID, utils.NotifPaymentReceived,
+			"Ad Campaign Payment Received",
+			fmt.Sprintf("Your ad campaign payment was successful %s.", statusMsg),
+			map[string]interface{}{
+				"campaign_id": campaignID,
+				"status":      status,
+			},
+		)
+
+		tokens, _ := handlers.GetUserFCMTokens(userID)
+		for _, token := range tokens {
+			if err := notifications.SendPushNotification(token,
+				"Campaign Payment Confirmed",
+				fmt.Sprintf("Your ad campaign payment was received and the campaign is %s.", status),
+				map[string]string{
+					"screen":      "AdsCampaigns",
+					"campaign_id": campaignID.String(),
+				},
+			); err != nil {
+				utils.Logger.Warn("ad_payment push failed", "error", err)
+				if apperrors.IsInvalidOrExpiredTokenError(err) {
+					_, _ = db.Exec(context.Background(),
+						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+				}
+			}
+		}
+	}(userID, campaignID, newStatus)
+
+	return nil
+}
+
+// processWalletAdPayment debits the first day's charge from the user's wallet,
+// creates the escrow/charge record, and activates the campaign if start_date
+// is today. If the wallet has insufficient funds the campaign stays 'pending'
+// and an error is returned so the caller can surface it to the client.
+func ProcessWalletAdPayment(
+	ctx context.Context,
+	db *pgxpool.Pool,
+	userID, campaignID uuid.UUID,
+	dailyPrice float64,
+	startDate time.Time,
+) error {
+	tx, err := db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var walletID uuid.UUID
+	var balance float64
+	err = tx.QueryRow(ctx, `
+		SELECT id, balance
+		FROM wallets
+		WHERE user_id = $1 AND is_active = TRUE
+		FOR UPDATE
+	`, userID).Scan(&walletID, &balance)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("wallet not found — please set up your wallet before running ads")
+		}
+		return fmt.Errorf("failed to fetch wallet: %w", err)
+	}
+
+	if balance < dailyPrice {
+		return fmt.Errorf(
+			"insufficient wallet balance. You need ₦%.2f but have ₦%.2f. Please top up your wallet to activate this campaign",
+			dailyPrice, balance,
+		)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE wallets
+		SET balance = balance - $1, last_transaction_at = NOW()
+		WHERE id = $2
+	`, dailyPrice, walletID); err != nil {
+		return fmt.Errorf("failed to debit wallet: %w", err)
+	}
+
+	today := time.Now().Format("2006-01-02")
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO ad_daily_charges (campaign_id, user_id, wallet_id, charge_date, amount, status)
+		VALUES ($1, $2, $3, $4, $5, 'success')
+		ON CONFLICT (campaign_id, charge_date) DO NOTHING
+	`, campaignID, userID, walletID, today, dailyPrice); err != nil {
+		return fmt.Errorf("failed to record daily charge: %w", err)
+	}
+
+	chargeRef := fmt.Sprintf("AD-INIT-%s-%s", campaignID.String()[:8], today)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO transactions (user_id, transaction_type, reference, amount, description, status)
+		VALUES ($1, 'debit', $2, $3, $4, 'success')
+		ON CONFLICT (reference) DO NOTHING
+	`, userID, chargeRef, dailyPrice,
+		fmt.Sprintf("Initial daily ad charge for campaign %s", campaignID),
+	); err != nil {
+		utils.Logger.Warnf("processWalletAdPayment: failed to record global tx: %v", err)
+	}
+
+	newStatus := "pending"
+	if startDate.Format("2006-01-02") == today {
+		newStatus = "active"
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE ad_campaigns
+		SET payment_status    = 'paid',
+		    status            = $1,
+		    amount_spent      = amount_spent + $2,
+		    last_charged_date = $3::DATE,
+		    updated_at        = NOW()
+		WHERE id = $4
+	`, newStatus, dailyPrice, today, campaignID); err != nil {
+		return fmt.Errorf("failed to activate campaign: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit wallet payment: %w", err)
+	}
+
+	go func(status string) {
+		bgCtx := context.Background()
+		db := sqlconnect.DB
+		if db == nil {
+			return
+		}
+
+		var email, phone, username, campaignTitle string
+		_ = db.QueryRow(bgCtx, `
+			SELECT
+				COALESCE(u.email, ''),
+				COALESCE(u.phone_number, ''),
+				u.username,
+				c.title
+			FROM users u
+			JOIN ad_campaigns c ON c.id = $2
+			WHERE u.id = $1
+		`, userID, campaignID).Scan(&email, &phone, &username, &campaignTitle)
+
+		statusMsg := "and is scheduled to start on your chosen date"
+		if status == "active" {
+			statusMsg = "and is now live"
+		}
+		_ = utils.CreateNotification(bgCtx, userID, utils.NotifPaymentReceived,
+			"Ad Campaign Payment Successful",
+			fmt.Sprintf("₦%.2f has been deducted for your campaign \"%s\" %s.", dailyPrice, campaignTitle, statusMsg),
+			map[string]interface{}{"campaign_id": campaignID, "amount": dailyPrice, "status": status},
+		)
+
+		if email != "" && status == "active" {
+			var endDate string
+			_ = db.QueryRow(bgCtx, `SELECT end_date::TEXT FROM ad_campaigns WHERE id = $1`, campaignID).Scan(&endDate)
+			if err := utils.SendAdCampaignStartedEmail(email, username, campaignTitle, endDate); err != nil {
+				utils.Logger.Warnf("processWalletAdPayment: campaign started email failed: %v", err)
+			}
+		}
+
+		if phone != "" && status == "active" {
+			if err := utils.SendAdCampaignStartedSMS(phone, username, campaignTitle); err != nil {
+				utils.Logger.Warnf("processWalletAdPayment: campaign started SMS failed: %v", err)
+			}
+		}
+	}(newStatus)
+
+	return nil
 }

@@ -67,6 +67,11 @@ func LeaveReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if userID == artisanID {
+		utils.WriteError(w, "you cannot review yourself", http.StatusForbidden)
+		return
+	}
+
 	type request struct {
 		Rating  int    `json:"rating"`
 		Comment string `json:"comment,omitempty"`

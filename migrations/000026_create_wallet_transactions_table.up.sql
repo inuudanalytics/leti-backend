@@ -4,6 +4,7 @@ CREATE TYPE wallet_transactions_type AS ENUM (
     'escrow_hold',
     'escrow_release',
     'withdrawal',
+    'ad_charge',
     'refund'
 );
 

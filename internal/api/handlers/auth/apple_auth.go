@@ -270,6 +270,18 @@ func AppleSignInHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	refreshToken, err := utils.GenerateRefreshToken()
+	if err != nil {
+		utils.Logger.Errorf("failed to generate refresh token for apple user: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if err := utils.StoreRefreshToken(dbCtx, user.ID, refreshToken, ""); err != nil {
+		utils.Logger.Errorf("failed to store refresh token for apple user: %v", err)
+		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Bearer",
 		Value:    tokenString,
@@ -278,6 +290,16 @@ func AppleSignInHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		SameSite: http.SameSiteNoneMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/api/v1/auth/refresh",
+		HttpOnly: true,
+		Secure:   true,
+		Expires:  time.Now().Add(30 * 24 * time.Hour),
+		SameSite: http.SameSiteStrictMode,
 	})
 
 	utils.WriteJSON(w, map[string]interface{}{

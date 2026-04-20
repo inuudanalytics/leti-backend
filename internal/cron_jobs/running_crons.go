@@ -34,6 +34,15 @@ func StartCronJobs() *cron.Cron {
 	// sending each tier (day_2, day_1, day_0) at most once per order.
 	c.AddFunc("0 9 * * *", sendCheckinReminders)
 
+	// Midnight: activate campaigns whose start_date is today
+	c.AddFunc("0 0 * * *", ActivatePendingCampaigns)
+
+	// 00:05: charge active campaigns' daily fee (5 min after midnight)
+	c.AddFunc("5 0 * * *", RunDailyAdCharges)
+
+	// 00:10: mark one_time campaigns whose end_date has passed as completed
+	c.AddFunc("10 0 * * *", ExpireCompletedCampaigns)
+
 	c.Start()
 	utils.Logger.Info("cron jobs started")
 	return c

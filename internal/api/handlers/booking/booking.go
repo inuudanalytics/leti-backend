@@ -184,6 +184,10 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "invalid artisan_id", http.StatusBadRequest)
 		return
 	}
+	if clientID == artisanID {
+		utils.WriteError(w, "you cannot book your own services", http.StatusForbidden)
+		return
+	}
 	if req.CategoryID == uuid.Nil {
 		utils.WriteError(w, "category_id is required", http.StatusBadRequest)
 		return

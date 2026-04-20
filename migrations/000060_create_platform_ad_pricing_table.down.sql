@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS platform_ad_pricing;

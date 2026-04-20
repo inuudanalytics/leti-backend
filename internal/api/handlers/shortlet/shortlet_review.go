@@ -114,6 +114,13 @@ func CreatePropertyReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var propOwnerID uuid.UUID
+	_ = db.QueryRow(ctx, `SELECT owner_id FROM properties WHERE id = $1`, propID).Scan(&propOwnerID)
+	if propOwnerID == clientID {
+		utils.WriteError(w, "you cannot review your own property", http.StatusForbidden)
+		return
+	}
+
 	var review shortlet.PropertyReview
 	err = db.QueryRow(ctx, `
 		INSERT INTO property_reviews (property_id, order_id, client_id, rating, comment)
