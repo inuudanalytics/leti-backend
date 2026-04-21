@@ -40,7 +40,7 @@ type SavedListingsResponse struct {
 }
 
 // ============================================================================
-// POST /properties/{id}/availability/block
+// POST /shortlet/properties/{id}/availability/block
 // ============================================================================
 
 // BlockPropertyDate godoc
@@ -55,7 +55,7 @@ type SavedListingsResponse struct {
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /properties/{id}/availability/block [post]
+// @Router       /shortlet/properties/{id}/availability/block [post]
 // @Security     BearerAuth
 func BlockPropertyDate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -151,7 +151,7 @@ func BlockPropertyDate(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /properties/{id}/availability/block-range
+// POST /shortlet/properties/{id}/availability/block-range
 // ============================================================================
 
 // BlockPropertyDateRange godoc
@@ -166,7 +166,7 @@ func BlockPropertyDate(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/availability/block-range [post]
+// @Router       /shortlet/properties/{id}/availability/block-range [post]
 // @Security     BearerAuth
 func BlockPropertyDateRange(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -288,7 +288,7 @@ func BlockPropertyDateRange(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// DELETE /properties/{id}/availability/block/{date}
+// DELETE /shortlet/properties/{id}/availability/block/{date}
 // ============================================================================
 
 // UnblockPropertyDate godoc
@@ -300,7 +300,7 @@ func BlockPropertyDateRange(w http.ResponseWriter, r *http.Request) {
 // @Param        date  path  string  true  "Date in YYYY-MM-DD"
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/availability/block/{date} [delete]
+// @Router       /shortlet/properties/{id}/availability/block/{date} [delete]
 // @Security     BearerAuth
 func UnblockPropertyDate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -336,12 +336,12 @@ func UnblockPropertyDate(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /properties/{id}/blocked-dates  — owner management view
+// GET /shortlet/properties/{id}/blocked-dates  — owner management view
 // ============================================================================
 
 // GetBlockedDates godoc
 // @Summary      List all blocked dates for a property (owner only)
-// @Description  Returns all dates the owner has explicitly blocked. Clients should use GET /properties/{id}/calendar instead, which merges blocked dates and existing bookings into a single availability view.
+// @Description  Returns all dates the owner has explicitly blocked. Clients should use GET /shortlet/properties/{id}/calendar instead, which merges blocked dates and existing bookings into a single availability view.
 // @Tags         Properties / Availability
 // @Produce      json
 // @Param        id    path   string  true  "Property UUID"
@@ -350,7 +350,7 @@ func UnblockPropertyDate(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,count=int,data=[]shortlet.PropertyAvailabilityOverride}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/blocked-dates [get]
+// @Router       /shortlet/properties/{id}/blocked-dates [get]
 // @Security     BearerAuth
 func GetBlockedDates(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -428,7 +428,7 @@ func itoa(n int) string {
 }
 
 // ============================================================================
-// GET /properties/{id}/calendar  — day-by-day availability (public)
+// GET /shortlet/properties/{id}/calendar  — day-by-day availability (public)
 // ============================================================================
 
 // GetPropertyCalendar godoc
@@ -442,7 +442,7 @@ func itoa(n int) string {
 // @Success      200  {object}  PropertyCalendarResponse
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/calendar [get]
+// @Router       /shortlet/properties/{id}/calendar [get]
 func GetPropertyCalendar(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -575,7 +575,7 @@ func GetPropertyCalendar(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /properties/{id}/save  — toggle saved/unsaved
+// POST /shortlet/properties/{id}/save  — toggle saved/unsaved
 // ============================================================================
 
 // ToggleSavedListing godoc
@@ -587,7 +587,7 @@ func GetPropertyCalendar(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string,saved=bool}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/save [post]
+// @Router       /shortlet/properties/{id}/save [post]
 // @Security     BearerAuth
 func ToggleSavedListing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -637,7 +637,7 @@ func ToggleSavedListing(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /clients/me/saved-listings
+// GET /shortlet/clients/me/saved-listings
 // ============================================================================
 
 // GetSavedListings godoc
@@ -649,7 +649,7 @@ func ToggleSavedListing(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query  integer false  "Items per page (default 20)"
 // @Success      200  {object}  SavedListingsResponse
 // @Failure      403  {object}  object{error=string}
-// @Router       /clients/me/saved-listings [get]
+// @Router       /shortlet/clients/me/saved-listings [get]
 // @Security     BearerAuth
 func GetSavedListings(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

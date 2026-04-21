@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"leti_server/internal/api/handlers"
 	"leti_server/internal/api/services"
+	"leti_server/internal/dto"
 	bookingModels "leti_server/internal/models/booking"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -289,13 +289,7 @@ func processBookingWalletPayment(
 			`SELECT COALESCE(phone_number, '') FROM users WHERE id = $1`, bk.ArtisanID,
 		).Scan(&artisanPhone)
 
-		handlers.SendPushToUser(bk.ArtisanID, "Payment Secured",
-			fmt.Sprintf("₦%.2f secured in escrow for your booking.", amount),
-			map[string]string{
-				"screen":     "BookingDetails",
-				"booking_id": bk.ID.String(),
-				"escrow_id":  escrowID.String(),
-			})
+		dto.PushBookingEscrowFunded(bk.ArtisanID, bk.ID, fmt.Sprintf("%.2f", amount))
 	}()
 
 	utils.WriteJSON(w, map[string]interface{}{

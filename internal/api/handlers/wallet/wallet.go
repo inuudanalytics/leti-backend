@@ -16,7 +16,7 @@ import (
 )
 
 // ============================================================================
-// POST /wallet/fund
+// POST /wallets/fund
 // ============================================================================
 // Initialises a Paystack checkout. The webhook handles the actual credit
 // when Paystack fires charge.success with transaction_type = "credit".
@@ -30,7 +30,7 @@ import (
 // @Param        body  body  object{amount=number,email=string}  true  "amount in Naira (min 100); email only required if account has none"
 // @Success      200   {object}  object{status=bool,message=string,data=object{authorization_url=string,reference=string}}
 // @Failure      400   {object}  object{error=string}
-// @Router       /wallet/fund [post]
+// @Router       /wallets/fund [post]
 // @Security     BearerAuth
 func FundWallet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -129,7 +129,7 @@ func FundWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /wallet/verify?reference=xxx
+// GET /wallets/verify/payment?reference=xxx
 // ============================================================================
 // Frontend callback — lets the client confirm the status of a Paystack payment
 // after redirect. The webhook is the source of truth for crediting; this
@@ -144,7 +144,7 @@ func FundWallet(w http.ResponseWriter, r *http.Request) {
 // @Param        trxref     query  string  false  "Paystack trxref (alias)"
 // @Success      200  {object}  object{status=string,message=string,reference=string,amount=number}
 // @Failure      400  {object}  object{status=string,message=string,reference=string,amount=number}
-// @Router       /wallet/verify [get]
+// @Router       /wallets/verify/payment [get]
 func VerifyPaymentCallback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)

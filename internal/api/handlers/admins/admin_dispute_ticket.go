@@ -235,9 +235,9 @@ func AdminCreateDisputeTicket(w http.ResponseWriter, r *http.Request) {
 		"An admin has opened a support chat for your dispute. You can now chat with support.",
 		map[string]interface{}{"ticket_id": ticket.ID, "dispute_id": disputeID},
 	)
-	go handlers.SendPushToUser(filedBy, "Dispute Under Review",
-		"An admin wants to chat with you about your dispute. Tap to open support chat.",
-		map[string]string{"screen": "SupportChat", "ticket_id": ticket.ID.String()})
+	go handlers.SendPushToUser(filedBy, "Dispute Ticket Opened",
+		"A support ticket has been created for your dispute. We will review it shortly.",
+		map[string]string{"screen": "SupportTicket", "ticket_id": ticket.ID.String()})
 
 	logAudit(ctx, db, callerID, "dispute.ticket_created", disputeType+"_dispute", &disputeID,
 		map[string]interface{}{"ticket_id": ticket.ID}, r)
@@ -395,7 +395,7 @@ func AdminGetDisputeTicket(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      401  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /disputes/ticket [get]
+// @Router       /dispute-centre/disputes/ticket [get]
 // @Security     BearerAuth
 func GetMyDisputeTicket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

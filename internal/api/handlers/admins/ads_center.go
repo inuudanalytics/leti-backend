@@ -15,7 +15,7 @@ import (
 )
 
 // ============================================================================
-// PATCH /admin/ads/pricing
+// PATCH /ads/admin/pricing
 // ============================================================================
 
 // AdminUpdateAdPricing godoc
@@ -28,7 +28,7 @@ import (
 // @Success      200  {object}  object{status=string,message=string,data=object}
 // @Failure      400  {object}  object{error=string}
 // @Failure      401  {object}  object{error=string}
-// @Router       /admin/ads/pricing [patch]
+// @Router       /ads/admin/pricing [patch]
 // @Security     BearerAuth
 func AdminUpdateAdPricing(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -146,7 +146,7 @@ func AdminUpdateAdPricing(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /admin/ads/campaigns
+// GET /ads/admin/campaigns
 // ============================================================================
 
 // AdminListCampaigns godoc
@@ -159,7 +159,7 @@ func AdminUpdateAdPricing(w http.ResponseWriter, r *http.Request) {
 // @Param        page         query  int     false  "Page (default 1)"
 // @Param        limit        query  int     false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,count=int,data=[]object,pagination=object}
-// @Router       /admin/ads/campaigns [get]
+// @Router       /ads/admin/campaigns [get]
 // @Security     BearerAuth
 func AdminListCampaigns(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -281,7 +281,7 @@ func AdminListCampaigns(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// PATCH /admin/ads/campaigns/{id}/status
+// PATCH /ads/admin/campaigns/{id}/status
 // ============================================================================
 
 // AdminUpdateCampaignStatus godoc
@@ -293,7 +293,7 @@ func AdminListCampaigns(w http.ResponseWriter, r *http.Request) {
 // @Param        id    path  string  true  "Campaign UUID"
 // @Param        body  body  object{status=string,reason=string}  true  "New status and optional reason"
 // @Success      200  {object}  object{status=string,message=string}
-// @Router       /admin/ads/campaigns/{id}/status [patch]
+// @Router       /ads/admin/campaigns/{id}/status [patch]
 // @Security     BearerAuth
 func AdminUpdateCampaignStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -361,7 +361,7 @@ func AdminUpdateCampaignStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /admin/ads/stats
+// GET /ads/admin/stats
 // ============================================================================
 
 // AdminAdStats godoc
@@ -370,7 +370,7 @@ func AdminUpdateCampaignStatus(w http.ResponseWriter, r *http.Request) {
 // @Tags         Admin Ads
 // @Produce      json
 // @Success      200  {object}  object{status=string,data=object}
-// @Router       /admin/ads/stats [get]
+// @Router       /ads/admin/stats [get]
 // @Security     BearerAuth
 func AdminAdStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

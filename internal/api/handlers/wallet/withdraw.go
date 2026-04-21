@@ -17,7 +17,7 @@ import (
 )
 
 // ============================================================================
-// POST /wallet/withdraw
+// POST /wallets/withdraw
 // ============================================================================
 
 // RequestWithdrawal godoc
@@ -30,7 +30,7 @@ import (
 // @Success      200   {object}  object{status=string,message=string,data=object{withdrawal_id=string,amount=number,fee=number,bank_name=string,account_number=string,status=string}}
 // @Failure      400   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}
-// @Router       /wallet/withdraw [post]
+// @Router       /wallets/withdraw [post]
 // @Security     BearerAuth
 func RequestWithdrawal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -300,7 +300,7 @@ func RequestWithdrawal(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /wallet/withdrawals
+// GET /wallets/withdrawals
 // ============================================================================
 
 // GetWithdrawalHistory godoc
@@ -311,7 +311,7 @@ func RequestWithdrawal(w http.ResponseWriter, r *http.Request) {
 // @Param        page   query  int  false  "Page (default 1)"
 // @Param        limit  query  int  false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,count=int,data=[]object,pagination=object}
-// @Router       /wallet/withdrawals [get]
+// @Router       /wallets/withdrawals [get]
 // @Security     BearerAuth
 func GetWithdrawalHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

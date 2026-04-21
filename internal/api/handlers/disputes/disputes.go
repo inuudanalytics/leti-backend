@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"leti_server/internal/api/handlers"
+	"leti_server/internal/dto"
 	disputemodels "leti_server/internal/models/support"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -29,7 +30,7 @@ type FileDisputeRequest struct {
 }
 
 // ============================================================================
-// POST /jobs/{id}/dispute  — client OR artisan files a job dispute
+// POST /dispute-centre/jobs/{id}/dispute  — client OR artisan files a job dispute
 // ============================================================================
 
 // FileJobDispute godoc
@@ -45,7 +46,7 @@ type FileDisputeRequest struct {
 // @Failure      401   {object}  object{error=string}
 // @Failure      404   {object}  object{error=string}
 // @Failure      409   {object}  object{error=string}  "Dispute already exists for this job"
-// @Router       /jobs/{id}/dispute [post]
+// @Router       /dispute-centre/jobs/{id}/dispute [post]
 // @Security     BearerAuth
 func FileJobDispute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -227,13 +228,9 @@ func FileJobDispute(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("A dispute has been filed against you for a job. Reason: %s", reason),
 		map[string]interface{}{"job_id": jobID, "dispute_id": disputeID},
 	)
-	go handlers.SendPushToUser(respondentID, "Dispute Filed",
-		"A dispute has been raised on one of your jobs. Payment is on hold.",
-		map[string]string{
-			"screen":     "Disputes",
-			"job_id":     jobID.String(),
-			"dispute_id": disputeID.String(),
-		})
+	dto.PushFallback(respondentID,
+		"Dispute Filed",
+		"A dispute has been filed against you. Payment is on hold pending review.")
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":     "success",
@@ -243,7 +240,7 @@ func FileJobDispute(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /bookings/{id}/dispute  — client OR artisan files a booking dispute
+// POST /dispute-centre/bookings/{id}/dispute  — client OR artisan files a booking dispute
 // ============================================================================
 
 // FileBookingDispute godoc
@@ -260,7 +257,7 @@ func FileJobDispute(w http.ResponseWriter, r *http.Request) {
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /bookings/{id}/dispute [post]
+// @Router       /dispute-centre/bookings/{id}/dispute [post]
 // @Security     BearerAuth
 func FileBookingDispute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -440,13 +437,9 @@ func FileBookingDispute(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("A dispute has been filed against you for a booking. Reason: %s", reason),
 		map[string]interface{}{"booking_id": bookingID, "dispute_id": disputeID},
 	)
-	go handlers.SendPushToUser(respondentID, "Dispute Filed",
-		"A dispute has been raised on one of your bookings. Payment is on hold.",
-		map[string]string{
-			"screen":     "Disputes",
-			"booking_id": bookingID.String(),
-			"dispute_id": disputeID.String(),
-		})
+	dto.PushFallback(respondentID,
+		"Dispute Filed",
+		"A dispute has been filed against you. Payment is on hold pending review.")
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":     "success",
@@ -456,7 +449,7 @@ func FileBookingDispute(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /orders/{id}/dispute  — client OR owner files an order (shortlet) dispute
+// POST /dispute-centre/orders/{id}/dispute  — client OR owner files an order (shortlet) dispute
 // ============================================================================
 
 // FileOrderDispute godoc
@@ -473,7 +466,7 @@ func FileBookingDispute(w http.ResponseWriter, r *http.Request) {
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /orders/{id}/dispute [post]
+// @Router       /dispute-centre/orders/{id}/dispute [post]
 // @Security     BearerAuth
 func FileOrderDispute(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -653,12 +646,9 @@ func FileOrderDispute(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("A dispute has been filed for an order. Reason: %s", reason),
 		map[string]interface{}{"order_id": orderID, "dispute_id": disputeID},
 	)
-	go handlers.SendPushToUser(respondentID, "Order Dispute Filed",
-		"A dispute has been raised on an order. Funds are frozen pending resolution.",
-		map[string]string{
-			"screen":     "Disputes",
-			"dispute_id": disputeID.String(),
-		})
+	dto.PushFallback(respondentID,
+		"Dispute Filed",
+		"A dispute has been filed against you. Payment is on hold pending review.")
 
 	utils.WriteJSON(w, map[string]interface{}{
 		"status":     "success",
@@ -668,7 +658,7 @@ func FileOrderDispute(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /disputes/jobs  — user gets their job disputes
+// GET /dispute-centre/disputes/jobs  — user gets their job disputes
 // ============================================================================
 
 // GetMyJobDisputes godoc
@@ -681,7 +671,7 @@ func FileOrderDispute(w http.ResponseWriter, r *http.Request) {
 // @Param        limit   query     int     false  "Items per page (default: 20)"
 // @Success      200  {object}  object{status=string,count=int,data=array,pagination=object{total=int,page=int,limit=int,total_pages=int}}
 // @Failure      401  {object}  object{error=string}
-// @Router       /disputes/jobs [get]
+// @Router       /dispute-centre/disputes/jobs [get]
 // @Security     BearerAuth
 func GetMyJobDisputes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -771,7 +761,7 @@ func GetMyJobDisputes(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /disputes/bookings  — user gets their booking disputes
+// GET /dispute-centre/disputes/bookings  — user gets their booking disputes
 // ============================================================================
 
 // GetMyBookingDisputes godoc
@@ -783,7 +773,7 @@ func GetMyJobDisputes(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query  int  false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,count=int,data=array}
 // @Failure      401  {object}  object{error=string}
-// @Router       /disputes/bookings [get]
+// @Router       /dispute-centre/disputes/bookings [get]
 // @Security     BearerAuth
 func GetMyBookingDisputes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -875,7 +865,7 @@ func GetMyBookingDisputes(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /disputes/orders  — user gets their order (shortlet) disputes
+// GET /dispute-centre/disputes/orders  — user gets their order (shortlet) disputes
 // ============================================================================
 
 // GetMyOrderDisputes godoc
@@ -887,7 +877,7 @@ func GetMyBookingDisputes(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query  int  false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,count=int,data=array}
 // @Failure      401  {object}  object{error=string}
-// @Router       /disputes/orders [get]
+// @Router       /dispute-centre/disputes/orders [get]
 // @Security     BearerAuth
 func GetMyOrderDisputes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

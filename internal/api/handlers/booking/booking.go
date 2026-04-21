@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"leti_server/internal/api/handlers"
+	"leti_server/internal/dto"
 	"leti_server/internal/models/booking"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -112,7 +113,7 @@ type ArtisanProfileDetail struct {
 }
 
 // ============================================================================
-// POST /bookings
+// POST /bookings/book
 // ============================================================================
 // Payment is NOT collected here. The booking is created with status='pending'
 // and payment_status='pending'. The client only pays after the artisan confirms.
@@ -127,7 +128,7 @@ type ArtisanProfileDetail struct {
 // @Success      201  {object}  object{status=string,message=string,booking=booking.Booking}
 // @Failure      400  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /bookings [post]
+// @Router       /bookings/book [post]
 // @Security     BearerAuth
 func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -399,7 +400,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 			`SELECT username FROM users WHERE id = $1`, clientID,
 		).Scan(&clientUsername)
 
-		// In-app notification
 		utils.CreateNotification(bgCtx, artisanID,
 			utils.NotifBookingRequest,
 			"New Booking Request",
@@ -407,7 +407,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 			map[string]interface{}{"booking_id": bk.ID},
 		)
 
-		// Email
+		dto.PushBookingRequest(artisanID, bk.ID, clientUsername, serviceName)
+
 		if artisanEmail != "" {
 			utils.SendBookingRequestEmail(
 				artisanEmail,
@@ -419,7 +420,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 
-		// SMS
 		if artisanPhone != "" {
 			utils.SendBookingRequestSMS(
 				artisanPhone,
@@ -544,7 +544,6 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 			serviceName = "Booking"
 		}
 
-		// In-app notification
 		utils.CreateNotification(bgCtx, bk.ClientID,
 			utils.NotifBookingConfirmed,
 			"Booking Confirmed – Payment Required",
@@ -555,7 +554,8 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 			},
 		)
 
-		// Email
+		dto.PushBookingConfirmedToClient(bk.ClientID, bk.ID, artisanUsername)
+
 		if clientEmail != "" {
 			utils.SendBookingConfirmedEmail(
 				clientEmail,
@@ -568,7 +568,6 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 
-		// SMS
 		if clientPhone != "" {
 			utils.SendBookingConfirmedSMS(
 				clientPhone,
@@ -677,7 +676,6 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 			serviceName = "Booking"
 		}
 
-		// In-app notification
 		utils.CreateNotification(bgCtx, clientID,
 			utils.NotifBookingDeclined,
 			"Booking Request Declined",
@@ -685,7 +683,8 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 			map[string]interface{}{"booking_id": bookingID},
 		)
 
-		// Email
+		dto.PushBookingDeclinedToClient(clientID, bookingID, artisanUsername)
+
 		if clientEmail != "" {
 			utils.SendBookingDeclinedEmail(
 				clientEmail,
@@ -696,7 +695,6 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 
-		// SMS
 		if clientPhone != "" {
 			utils.SendBookingDeclinedSMS(
 				clientPhone,
@@ -838,7 +836,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 			serviceName = "Booking"
 		}
 
-		// In-app notification
 		utils.CreateNotification(bgCtx, notifyID,
 			utils.NotifBookingCancelled,
 			"Booking Cancelled",
@@ -846,12 +843,18 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 			map[string]interface{}{
 				"booking_id":        bookingID,
 				"cancelled_by_role": cancelledByRole,
-				// refund_processed = true means the wallet was already credited
-				"refund_processed": refundProcessed,
+				"refund_processed":  refundProcessed,
 			},
 		)
 
-		// Email
+		if userID == artisanID {
+			dto.PushBookingCancelledToClient(notifyID, bookingID, "artisan")
+		} else {
+			dto.PushFallback(notifyID,
+				"Booking Cancelled",
+				"A client has cancelled their booking.")
+		}
+
 		if notifyEmail != "" {
 			utils.SendBookingCancelledEmail(
 				notifyEmail,
@@ -863,7 +866,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 
-		// SMS
 		if notifyPhone != "" {
 			utils.SendBookingCancelledSMS(
 				notifyPhone,
@@ -1110,12 +1112,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("₦%.2f has been released to your wallet.", netPayout),
 				map[string]interface{}{"booking_id": bk.ID, "amount": netPayout},
 			)
-			handlers.SendPushToUser(bk.ArtisanID, "Payment Released",
-				fmt.Sprintf("₦%.2f released to your wallet (after 8%% platform fee).", netPayout),
-				map[string]string{
-					"screen":     "ArtisanDashboard",
-					"booking_id": bk.ID.String(),
-				})
+			dto.PushArtisanPaymentReleased(bk.ArtisanID, fmt.Sprintf("%.2f", netPayout))
 
 			if clientEmail != "" {
 				utils.SendBookingCompletedEmail(clientEmail, clientUsername, artisanUsername, serviceName, bk.BookingDate)
@@ -1131,13 +1128,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 				"Please confirm that the service was delivered to release the artisan's payment.",
 				map[string]interface{}{"booking_id": bk.ID},
 			)
-			handlers.SendPushToUser(bk.ClientID,
-				"Confirm Booking Completion",
-				fmt.Sprintf("%s has marked your booking as complete. Tap to confirm.", artisanUsername),
-				map[string]string{
-					"screen":     "BookingDetails",
-					"booking_id": bk.ID.String(),
-				})
+			dto.PushBookingCompletedToClient(bk.ClientID, bk.ID, artisanUsername)
 		}
 	}(fullyComplete, role, bk, artisanCompletedAt)
 
@@ -1343,7 +1334,7 @@ func GetBooking(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/online
+// GET /bookings/artisans/online
 // ============================================================================
 
 // GetOnlineArtisans godoc
@@ -1376,7 +1367,7 @@ func GetBooking(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{data=[]ArtisanListItem,total=int,page=int,limit=int}
 // @Failure      400  {object}  object{error=string}
 // @Failure      500  {object}  object{error=string}
-// @Router       /artisans/online [get]
+// @Router       /bookings/artisans/online [get]
 // @Security     BearerAuth
 func GetOnlineArtisans(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -1692,7 +1683,7 @@ func GetOnlineArtisans(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}
+// GET /bookings/artisans/{id}
 // ============================================================================
 
 // GetArtisanProfile godoc
@@ -1717,7 +1708,7 @@ func GetOnlineArtisans(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      500  {object}  object{error=string}
-// @Router       /artisans/{id} [get]
+// @Router       /bookings/artisans/{id} [get]
 // @Security     BearerAuth
 func GetArtisanProfile(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

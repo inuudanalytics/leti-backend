@@ -33,10 +33,10 @@ func adsRouter() *http.ServeMux {
 	mux.HandleFunc("GET /ads/campaigns/{id}/analytics", rl(looseRL, adsHandler.GetCampaignAnalytics))
 
 	// ── Admin ────────────────
-	mux.HandleFunc("PATCH /admin/ads/pricing", rl(tightRL, adminAdsHandler.AdminUpdateAdPricing))
-	mux.HandleFunc("GET /admin/ads/campaigns", rl(looseRL, adminAdsHandler.AdminListCampaigns))
-	mux.HandleFunc("PATCH /admin/ads/campaigns/{id}/status", rl(moderateRL, adminAdsHandler.AdminUpdateCampaignStatus))
-	mux.HandleFunc("GET /admin/ads/stats", rl(looseRL, adminAdsHandler.AdminAdStats))
+	mux.HandleFunc("PATCH /ads/admin/pricing", rl(tightRL, adminAdsHandler.AdminUpdateAdPricing))
+	mux.HandleFunc("GET /ads/admin/campaigns", rl(looseRL, adminAdsHandler.AdminListCampaigns))
+	mux.HandleFunc("PATCH /ads/admin/campaigns/{id}/status", rl(moderateRL, adminAdsHandler.AdminUpdateCampaignStatus))
+	mux.HandleFunc("GET /ads/admin/stats", rl(looseRL, adminAdsHandler.AdminAdStats))
 
 	return mux
 }

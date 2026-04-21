@@ -39,7 +39,7 @@ type PropertyReviewListResponse struct {
 }
 
 // ============================================================================
-// POST /orders/{id}/reviews
+// POST /shortlet/orders/{id}/reviews
 // ============================================================================
 
 // CreatePropertyReview godoc
@@ -54,7 +54,7 @@ type PropertyReviewListResponse struct {
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /orders/{id}/reviews [post]
+// @Router       /shortlet/orders/{id}/reviews [post]
 // @Security     BearerAuth
 func CreatePropertyReview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -166,7 +166,7 @@ func CreatePropertyReview(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /reviews/{id}/reply
+// POST /shortlet/reviews/{id}/reply
 // ============================================================================
 
 // ReplyToPropertyReview godoc
@@ -181,7 +181,7 @@ func CreatePropertyReview(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /reviews/{id}/reply [post]
+// @Router       /shortlet/reviews/{id}/reply [post]
 // @Security     BearerAuth
 func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -291,7 +291,7 @@ func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /properties/{id}/reviews
+// GET /shortlet/properties/{id}/reviews
 // ============================================================================
 
 // GetPropertyReviews godoc
@@ -304,7 +304,7 @@ func ReplyToPropertyReview(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query   integer false  "Items per page (default 10)"
 // @Success 200 {object} PropertyReviewListResponse
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/reviews [get]
+// @Router       /shortlet/properties/{id}/reviews [get]
 func GetPropertyReviews(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)

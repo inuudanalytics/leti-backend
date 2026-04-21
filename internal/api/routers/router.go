@@ -40,6 +40,10 @@ func MainRouter() *http.ServeMux {
 
 	apiMux.Handle("/admin/", adminRouter())
 
+	apiMux.Handle("/dispute-centre/", disputeRouter())
+
+	apiMux.Handle("/ads/", adsRouter())
+
 	apiMux.Handle("/support/", supportRouter())
 
 	apiMux.Handle("/system/", healthRouter())

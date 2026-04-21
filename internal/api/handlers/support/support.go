@@ -47,7 +47,7 @@ var validPriorities = map[string]bool{
 }
 
 // ============================================================================
-// WS  GET /api/v1/support/ws
+// WS  GET /support/ws
 // ============================================================================
 
 // ServeUserSupportWS godoc
@@ -86,7 +86,7 @@ func ServeUserSupportWS(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /api/v1/support/tickets
+// POST /support/tickets
 // ============================================================================
 
 // CreateSupportTicket godoc
@@ -199,7 +199,7 @@ func CreateSupportTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /api/v1/support/tickets
+// GET /support/tickets
 // ============================================================================
 
 // GetMyTickets godoc
@@ -295,7 +295,7 @@ func GetMyTickets(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /api/v1/support/tickets/{id}
+// GET /support/tickets/{id}
 // ============================================================================
 
 // GetMyTicket godoc
@@ -367,7 +367,7 @@ func GetMyTicket(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /api/v1/support/tickets/{id}/messages
+// GET /support/tickets/{id}/messages
 // ============================================================================
 
 // GetTicketMessages godoc
@@ -487,7 +487,7 @@ func GetTicketMessages(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /api/v1/support/tickets/{id}/messages/images
+// POST /support/tickets/{id}/messages/images
 // ============================================================================
 
 // SendTicketImageMessage godoc
@@ -637,7 +637,7 @@ func SendTicketImageMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// PATCH /api/v1/support/tickets/{id}/read
+// PATCH /support/tickets/{id}/read
 // ============================================================================
 
 // MarkTicketMessagesRead godoc

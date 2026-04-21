@@ -203,7 +203,7 @@ func UpdateUserProfileHandler(w http.ResponseWriter, r *http.Request) {
 // @Failure      403   {object}  object{error=string}
 // @Failure      405   {object}  object{error=string}
 // @Failure      500   {object}  object{error=string}
-// @Router       /artisans/online-status [patch]
+// @Router       /profile/artisans/online-status [patch]
 // @Security     BearerAuth
 func ToggleArtisanOnlineStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {

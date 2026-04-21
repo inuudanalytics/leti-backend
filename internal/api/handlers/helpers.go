@@ -252,7 +252,7 @@ func SendPushToUser(userID uuid.UUID, title, body string, data ...map[string]str
 }
 
 // getUserFCMTokens fetches all FCM tokens registered for a artisan.
-func GetUserFCMTokens(artisanID uuid.UUID) ([]string, error) {
+func GetUserFCMTokens(userID uuid.UUID) ([]string, error) {
 	db := sqlconnect.DB
 	if db == nil {
 		return nil, fmt.Errorf("db not initialized")
@@ -260,7 +260,7 @@ func GetUserFCMTokens(artisanID uuid.UUID) ([]string, error) {
 
 	rows, err := db.Query(context.Background(), `
 		SELECT fcm_token FROM user_devices WHERE user_id = $1
-	`, artisanID)
+	`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -889,10 +889,10 @@ func SendOrderConfirmationNotifications(order shortletModels.Order, db *pgxpool.
 	// Push notifications
 	SendPushToUser(order.ClientID, "Booking Confirmed",
 		fmt.Sprintf("Your stay at %s is confirmed!", propName),
-		map[string]string{"screen": "OrderDetails", "order_id": order.ID.String()})
+		map[string]string{"screen": "ClientOrderDetail", "order_id": order.ID.String()})
 	SendPushToUser(order.OwnerID, "New Booking!",
 		fmt.Sprintf("%s booked your property", clientFirstName),
-		map[string]string{"screen": "OwnerOrders", "order_id": order.ID.String()})
+		map[string]string{"screen": "OwnerOrderDetail", "order_id": order.ID.String()})
 
 	// Client email + SMS
 	if clientEmail != "" {

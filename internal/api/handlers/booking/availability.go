@@ -44,7 +44,7 @@ type ArtisanAvailabilityResponse struct {
 }
 
 // ============================================================================
-// POST /artisan/availability
+// POST /bookings/artisan/availability
 // ============================================================================
 
 // SetAvailability godoc
@@ -57,7 +57,7 @@ type ArtisanAvailabilityResponse struct {
 // @Success 200 {object} AvailabilityResponse
 // @Failure      400   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
-// @Router       /artisan/availability [post]
+// @Router       /bookings/artisan/availability [post]
 // @Security     BearerAuth
 func SetAvailability(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -169,7 +169,7 @@ func SetAvailability(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// DELETE /artisan/availability/{id}
+// DELETE /bookings/artisan/availability/{id}
 // ============================================================================
 
 // DeleteAvailability godoc
@@ -180,7 +180,7 @@ func SetAvailability(w http.ResponseWriter, r *http.Request) {
 // @Param        id   path  string  true  "Availability UUID"
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /artisan/availability/{id} [delete]
+// @Router       /bookings/artisan/availability/{id} [delete]
 // @Security     BearerAuth
 func DeleteAvailability(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -229,7 +229,7 @@ func DeleteAvailability(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisan/availability
+// GET /bookings/artisan/availability
 // ============================================================================
 
 // GetMyAvailability godoc
@@ -239,7 +239,7 @@ func DeleteAvailability(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Param        category_id  query  string  false  "Filter by category UUID"
 // @Success 200  {object}  AvailabilityListResponse
-// @Router       /artisan/availability [get]
+// @Router       /bookings/artisan/availability [get]
 // @Security     BearerAuth
 func GetMyAvailability(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -311,7 +311,7 @@ func GetMyAvailability(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /artisan/availability/overrides
+// POST /bookings/artisan/availability/overrides
 // ============================================================================
 
 // SetAvailabilityOverride godoc
@@ -323,7 +323,7 @@ func GetMyAvailability(w http.ResponseWriter, r *http.Request) {
 // @Param        body  body  object{category_id=string,date=string,is_available=bool,note=string}  true  "date in YYYY-MM-DD format; category_id is a UUID"
 // @Success      200   {object}  AvailabilityOverrideResponse
 // @Failure      400   {object}  object{error=string}
-// @Router       /artisan/availability/overrides [post]
+// @Router       /bookings/artisan/availability/overrides [post]
 // @Security     BearerAuth
 func SetAvailabilityOverride(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -420,7 +420,7 @@ func SetAvailabilityOverride(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/available-slots
+// GET /bookings/artisans/{id}/available-slots
 // ============================================================================
 
 // GetAvailableSlots godoc
@@ -628,7 +628,7 @@ func GetAvailableSlots(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/{id}/availability
+// GET /bookings/artisans/{id}/availability
 // ============================================================================
 
 // GetArtisanAvailability godoc

@@ -40,7 +40,7 @@ type PropertyDetailResponse struct {
 }
 
 // ============================================================================
-// POST /properties/draft  — create an empty / partial draft listing
+// POST /shortlet/properties/draft  — create an empty / partial draft listing
 // ============================================================================
 
 // CreatePropertyDraft godoc
@@ -66,7 +66,7 @@ type PropertyDetailResponse struct {
 // @Param        images          formData  file    false  "Images (max 5)"
 // @Success 201 {object} PropertyResponse
 // @Failure      403  {object}  object{error=string}
-// @Router       /properties/draft [post]
+// @Router       /shortlet/properties/draft [post]
 // @Security     BearerAuth
 func CreatePropertyDraft(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -315,7 +315,7 @@ func CreatePropertyDraft(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// PATCH /properties/{id}/publish  — validate draft and flip to 'active'
+// PATCH /shortlet/properties/{id}/publish  — validate draft and flip to 'active'
 // ============================================================================
 
 // PublishProperty godoc
@@ -328,7 +328,7 @@ func CreatePropertyDraft(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string,missing_fields=[]string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id}/publish [patch]
+// @Router       /shortlet/properties/{id}/publish [patch]
 // @Security     BearerAuth
 func PublishProperty(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -582,7 +582,7 @@ func PublishProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /owners/me/properties/drafts
+// GET /shortlet/owners/me/properties/drafts
 // ============================================================================
 
 // GetMyDraftProperties godoc
@@ -594,7 +594,7 @@ func PublishProperty(w http.ResponseWriter, r *http.Request) {
 // @Param        limit  query  integer false  "Items per page (default 20)"
 // @Success 200 {object} PropertyListResponse
 // @Failure      403  {object}  object{error=string}
-// @Router       /owners/me/properties/drafts [get]
+// @Router       /shortlet/owners/me/properties/drafts [get]
 // @Security     BearerAuth
 func GetMyDraftProperties(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -696,7 +696,7 @@ func GetMyDraftProperties(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /properties
+// POST /shortlet/properties
 // ============================================================================
 
 // CreateProperty godoc
@@ -723,7 +723,7 @@ func GetMyDraftProperties(w http.ResponseWriter, r *http.Request) {
 // @Success 201 {object} PropertyResponse
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /properties [post]
+// @Router       /shortlet/properties [post]
 // @Security     BearerAuth
 func CreateProperty(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -972,7 +972,7 @@ func CreateProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// PATCH /properties/{id}
+// PATCH /shortlet/properties/{id}
 // ============================================================================
 
 // UpdateProperty godoc
@@ -1002,7 +1002,7 @@ func CreateProperty(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id} [patch]
+// @Router       /shortlet/properties/{id} [patch]
 // @Security     BearerAuth
 func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -1326,7 +1326,7 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// DELETE /properties/{id}
+// DELETE /shortlet/properties/{id}
 // ============================================================================
 
 // DeleteProperty godoc
@@ -1340,7 +1340,7 @@ func UpdateProperty(w http.ResponseWriter, r *http.Request) {
 // @Failure      403  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /properties/{id} [delete]
+// @Router       /shortlet/properties/{id} [delete]
 // @Security     BearerAuth
 func DeleteProperty(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
@@ -1410,7 +1410,7 @@ func DeleteProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /properties/{id}
+// GET /shortlet/properties/{id}
 // ============================================================================
 
 // GetProperty godoc
@@ -1421,7 +1421,7 @@ func DeleteProperty(w http.ResponseWriter, r *http.Request) {
 // @Param        id  path  string  true  "Property UUID"
 // @Success      200  {object}  PropertyDetailResponse
 // @Failure      404  {object}  object{error=string}
-// @Router       /properties/{id} [get]
+// @Router       /shortlet/properties/{id} [get]
 // @Security     BearerAuth
 func GetProperty(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -1581,7 +1581,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /properties  (public listing with advanced filters)
+// GET /shortlet/properties  (public listing with advanced filters)
 // ============================================================================
 
 // ListProperties godoc
@@ -1607,7 +1607,7 @@ func GetProperty(w http.ResponseWriter, r *http.Request) {
 // @Param        page            query  integer false  "Page number (default 1)"
 // @Param        limit           query  integer false  "Items per page (default 20, max 50)"
 // @Success 200 {object} PropertyListResponse
-// @Router       /properties [get]
+// @Router       /shortlet/properties [get]
 func ListProperties(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		utils.WriteError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1829,7 +1829,7 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /owners/me/properties  — owner's own listings
+// GET /shortlet/owners/me/properties  — owner's own listings
 // ============================================================================
 
 // GetMyProperties godoc
@@ -1842,7 +1842,7 @@ func ListProperties(w http.ResponseWriter, r *http.Request) {
 // @Param        limit   query  integer false  "Items per page (default 20)"
 // @Success 200 {object} PropertyListResponse
 // @Failure      403  {object}  object{error=string}
-// @Router       /owners/me/properties [get]
+// @Router       /shortlet/owners/me/properties [get]
 // @Security     BearerAuth
 func GetMyProperties(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

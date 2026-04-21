@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
 	"leti_server/internal/api/handlers"
 	"leti_server/internal/api/services/notifications"
+	"leti_server/internal/dto"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/apperrors"
@@ -335,33 +337,35 @@ func handleWalletCredit(
 	}
 	defer rows.Close()
 
-	var tokens []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			continue
-		}
-		tokens = append(tokens, t)
-	}
+	// var tokens []string
+	// for rows.Next() {
+	// 	var t string
+	// 	if err := rows.Scan(&t); err != nil {
+	// 		continue
+	// 	}
+	// 	tokens = append(tokens, t)
+	// }
 
-	go func(tokens []string) {
-		for _, token := range tokens {
-			if err := notifications.SendPushNotification(token,
-				"Wallet Funded",
-				fmt.Sprintf("Your wallet has been credited with ₦%d.", amountNaira),
-				map[string]string{
-					"screen": "Wallet",
-				},
-			); err != nil {
-				utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
-				if apperrors.IsInvalidOrExpiredTokenError(err) {
-					_, _ = db.Exec(context.Background(),
-						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
-					utils.Logger.Info("Removed expired FCM token", "user_id", userID)
-				}
-			}
-		}
-	}(tokens)
+	// go func(tokens []string) {
+	// 	for _, token := range tokens {
+	// 		if err := notifications.SendPushNotification(token,
+	// 			"Wallet Funded",
+	// 			fmt.Sprintf("Your wallet has been credited with ₦%d.", amountNaira),
+	// 			map[string]string{
+	// 				"screen": "Wallet",
+	// 			},
+	// 		); err != nil {
+	// 			utils.Logger.Warn("Failed to send push", "user_id", userID, "error", err)
+	// 			if apperrors.IsInvalidOrExpiredTokenError(err) {
+	// 				_, _ = db.Exec(context.Background(),
+	// 					`DELETE FROM user_devices WHERE fcm_token = $1`, token)
+	// 				utils.Logger.Info("Removed expired FCM token", "user_id", userID)
+	// 			}
+	// 		}
+	// 	}
+	// }(tokens)
+
+	go dto.PushWalletCredited(userID, strconv.Itoa(amountNaira))
 
 	return nil
 }
@@ -449,18 +453,9 @@ func handleJobPayment(
 		return fmt.Errorf("job_payment: failed to upsert commission: %w", err)
 	}
 
-	go func(aID uuid.UUID, amt float64, jID uuid.UUID) {
-		tokens, _ := handlers.GetUserFCMTokens(aID)
-		for _, token := range tokens {
-			notifications.SendPushNotification(token,
-				"Payment Secured",
-				fmt.Sprintf("₦%.2f secured in escrow via Paystack for your job.", amt),
-				map[string]string{
-					"screen": "ArtisanDashboard",
-					"job_id": jID.String(),
-				})
-		}
-	}(artisanID, amount, jobID)
+	go dto.PushFallback(artisanID,
+		"Payment Secured",
+		fmt.Sprintf("₦%.2f secured in escrow via Paystack for your job.", amount))
 
 	return nil
 }
@@ -562,18 +557,7 @@ func handleBookingPayment(
 		return fmt.Errorf("booking_payment: failed to upsert commission: %w", err)
 	}
 
-	go func(aID uuid.UUID, amt float64, bkID uuid.UUID) {
-		tokens, _ := handlers.GetUserFCMTokens(aID)
-		for _, token := range tokens {
-			notifications.SendPushNotification(token,
-				"Payment Secured",
-				fmt.Sprintf("₦%.2f secured in escrow via Paystack for your booking.", amt),
-				map[string]string{
-					"screen":     "BookingDetails",
-					"booking_id": bkID.String(),
-				})
-		}
-	}(artisanID, amount, bookingID)
+	go dto.PushBookingEscrowFunded(artisanID, bookingID, fmt.Sprintf("%.2f", amount))
 
 	return nil
 }
@@ -738,22 +722,7 @@ func handleTransferPending(ctx context.Context, db *pgxpool.Pool, transferRef, t
 	utils.Logger.Info("transfer.pending received — withdrawal still processing",
 		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
 
-	go func() {
-		tokens, _ := handlers.GetUserFCMTokens(userID)
-		for _, token := range tokens {
-			if err := notifications.SendPushNotification(token,
-				"Withdrawal In Progress",
-				"Your withdrawal is being processed. Funds should arrive in your bank account shortly.",
-				map[string]string{"screen": "Wallet"},
-			); err != nil {
-				utils.Logger.Warn("Failed to send push for transfer.pending", "user_id", userID, "error", err)
-				if apperrors.IsInvalidOrExpiredTokenError(err) {
-					_, _ = db.Exec(context.Background(),
-						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
-				}
-			}
-		}
-	}()
+	go dto.PushWithdrawalInProgress(userID)
 
 	return nil
 }
@@ -783,22 +752,7 @@ func handleTransferSuccess(ctx context.Context, db *pgxpool.Pool, transferRef, t
 	utils.Logger.Info("Withdrawal marked successful",
 		"transfer_ref", transferRef, "transfer_code", transferCode, "user_id", userID)
 
-	go func() {
-		tokens, _ := handlers.GetUserFCMTokens(userID)
-		for _, token := range tokens {
-			if err := notifications.SendPushNotification(token,
-				"Withdrawal Successful",
-				"Your withdrawal has been sent to your bank account.",
-				map[string]string{"screen": "Wallet"},
-			); err != nil {
-				utils.Logger.Warn("Failed to send push for transfer.success", "user_id", userID, "error", err)
-				if apperrors.IsInvalidOrExpiredTokenError(err) {
-					_, _ = db.Exec(context.Background(),
-						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
-				}
-			}
-		}
-	}()
+	go dto.PushWithdrawalSucceeded(userID)
 
 	return nil
 }
@@ -866,22 +820,8 @@ func handleTransferFailed(ctx context.Context, db *pgxpool.Pool, transferRef, tr
 		map[string]interface{}{"screen": "Wallet", "withdrawal_id": withdrawalID.String()},
 	)
 
-	go func() {
-		tokens, _ := handlers.GetUserFCMTokens(userID)
-		for _, token := range tokens {
-			if err := notifications.SendPushNotification(token,
-				"Withdrawal Failed",
-				"Your withdrawal could not be processed. Your funds have been returned to your wallet.",
-				map[string]string{"screen": "Wallet"},
-			); err != nil {
-				utils.Logger.Warn("Failed to send push for transfer.failed", "user_id", userID, "error", err)
-				if apperrors.IsInvalidOrExpiredTokenError(err) {
-					_, _ = db.Exec(context.Background(),
-						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
-				}
-			}
-		}
-	}()
+	go dto.PushWithdrawalFailed(userID,
+		"Your withdrawal could not be processed and has been refunded to your wallet.")
 
 	return nil
 }
@@ -957,22 +897,8 @@ func handleTransferReversed(ctx context.Context, db *pgxpool.Pool, transferRef, 
 		map[string]interface{}{"screen": "Wallet", "withdrawal_id": withdrawalID.String()},
 	)
 
-	go func() {
-		tokens, _ := handlers.GetUserFCMTokens(userID)
-		for _, token := range tokens {
-			if err := notifications.SendPushNotification(token,
-				"Withdrawal Reversed",
-				"Your withdrawal was returned by your bank. Your full amount including fees has been refunded to your wallet. Please verify your bank details and try again.",
-				map[string]string{"screen": "Wallet"},
-			); err != nil {
-				utils.Logger.Warn("Failed to send push for transfer.reversed", "user_id", userID, "error", err)
-				if apperrors.IsInvalidOrExpiredTokenError(err) {
-					_, _ = db.Exec(context.Background(),
-						`DELETE FROM user_devices WHERE fcm_token = $1`, token)
-				}
-			}
-		}
-	}()
+	go dto.PushWithdrawalFailed(userID,
+		"Your withdrawal was returned by your bank. Your full amount including fees has been refunded.")
 
 	return nil
 }

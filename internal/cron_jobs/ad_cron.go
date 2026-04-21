@@ -3,7 +3,7 @@ package cronjobs
 import (
 	"context"
 	"fmt"
-	"leti_server/internal/api/handlers"
+	"leti_server/internal/dto"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
 	"time"
@@ -260,14 +260,8 @@ func notifyInsufficientBalance(userID, campaignID uuid.UUID, required, available
 		},
 	)
 
-	handlers.SendPushToUser(userID,
-		"Ad Campaign Paused",
-		fmt.Sprintf("Top up at least ₦%.2f to resume your campaign.", required-available),
-		map[string]string{
-			"screen":      "AdsCampaigns",
-			"campaign_id": campaignID.String(),
-		},
-	)
+	dto.PushAdInsufficientBalance(userID, campaignID,
+		fmt.Sprintf("%.2f", required-available))
 
 	var email, phone, username string
 	_ = db.QueryRow(ctx,

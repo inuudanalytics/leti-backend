@@ -12,7 +12,7 @@ import (
 )
 
 // ============================================================================
-// GET /owners/me/dashboard
+// GET /dashboard/owners/me/dashboard
 // ============================================================================
 
 // GetOwnerDashboard godoc
@@ -28,7 +28,7 @@ import (
 // @Success      200  {object}  object{status=string,data=object{total_listings=int,occupancy_rate=float64,avg_rating=float64,occupied_shortlets=int}}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /owners/me/dashboard [get]
+// @Router       /dashboard/owners/me/dashboard [get]
 // @Security     BearerAuth
 func GetOwnerDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -115,7 +115,7 @@ func GetOwnerDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /artisans/me/dashboard
+// GET /dashboard/artisans/me/dashboard
 // ============================================================================
 
 // GetArtisanDashboard godoc
@@ -130,7 +130,7 @@ func GetOwnerDashboard(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,data=object{completed_jobs=int,incoming_requests=int,avg_rating=float64}}
 // @Failure      401  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /artisans/me/dashboard [get]
+// @Router       /dashboard/artisans/me/dashboard [get]
 // @Security     BearerAuth
 func GetArtisanDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

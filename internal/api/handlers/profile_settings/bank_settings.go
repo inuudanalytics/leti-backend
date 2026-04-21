@@ -47,7 +47,7 @@ var bankConfigs = map[string]bankConfig{
 }
 
 // ============================================================================
-// POST /bank/verify  — verify bank details via Paystack (all roles)
+// POST /profile/bank/verify  — verify bank details via Paystack (all roles)
 // ============================================================================
 
 // VerifyBankDetails godoc
@@ -60,7 +60,7 @@ var bankConfigs = map[string]bankConfig{
 // @Success      200   {object}  object{status=string,message=string,data=object}
 // @Failure      400   {object}  object{error=string}
 // @Failure      401   {object}  object{error=string}
-// @Router       /bank/verify [post]
+// @Router       /profile/bank/verify [post]
 // @Security     BearerAuth
 func VerifyBankDetails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -117,7 +117,7 @@ func VerifyBankDetails(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /bank/list  — list all supported banks from Paystack (all roles)
+// GET /profile/bank/list  — list all supported banks from Paystack (all roles)
 // ============================================================================
 
 // GetBankList godoc
@@ -127,7 +127,7 @@ func VerifyBankDetails(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {object}  object{status=string,count=int,data=[]object{name=string,code=string}}
 // @Failure      500  {object}  object{error=string}
-// @Router       /bank/list [get]
+// @Router       /profile/bank/list [get]
 // @Security     BearerAuth
 func GetBankList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

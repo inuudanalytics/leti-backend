@@ -12,6 +12,7 @@ import (
 	"leti_server/internal/api/handlers"
 	cachehook "leti_server/internal/api/handlers/hooks"
 	"leti_server/internal/api/services"
+	"leti_server/internal/dto"
 	"leti_server/internal/models/shortlet"
 	"leti_server/internal/repositories/sqlconnect"
 	"leti_server/pkg/utils"
@@ -49,7 +50,7 @@ type OrderPreviewResponse struct {
 }
 
 // ============================================================================
-// POST /orders/preview  — booking summary before payment
+// POST /shortlet/orders/preview  — booking summary before payment
 // ============================================================================
 
 // PreviewOrder godoc
@@ -62,7 +63,7 @@ type OrderPreviewResponse struct {
 // @Success 200  {object} OrderPreviewResponse
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /orders/preview [post]
+// @Router       /shortlet/orders/preview [post]
 // @Security     BearerAuth
 func PreviewOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -154,7 +155,7 @@ func PreviewOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// POST /orders
+// POST /shortlet/orders
 // ============================================================================
 
 // CreateOrder godoc
@@ -168,7 +169,7 @@ func PreviewOrder(w http.ResponseWriter, r *http.Request) {
 // @Failure      400  {object}  object{error=string}
 // @Failure      402  {object}  object{error=string,code=string}
 // @Failure      409  {object}  object{error=string}
-// @Router       /orders [post]
+// @Router       /shortlet/orders [post]
 // @Security     BearerAuth
 func CreateOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -492,7 +493,7 @@ func initiateOrderPaystackPayment(
 }
 
 // ============================================================================
-// PATCH /orders/{id}/cancel
+// PATCH /shortlet/orders/{id}/cancel
 // ============================================================================
 
 // CancelOrder godoc
@@ -504,7 +505,7 @@ func initiateOrderPaystackPayment(
 // @Success      200  {object}  object{status=string,message=string,refund_processed=bool}
 // @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
-// @Router       /orders/{id}/cancel [patch]
+// @Router       /shortlet/orders/{id}/cancel [patch]
 // @Security     BearerAuth
 func CancelOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -594,7 +595,7 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// PATCH /orders/{id}/check-in
+// PATCH /shortlet/orders/{id}/check-in
 // ============================================================================
 
 // CheckInOrder godoc
@@ -606,7 +607,7 @@ func CancelOrder(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string}
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /orders/{id}/check-in [patch]
+// @Router       /shortlet/orders/{id}/check-in [patch]
 // @Security     BearerAuth
 func CheckInOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -659,11 +660,13 @@ func CheckInOrder(w http.ResponseWriter, r *http.Request) {
 		map[string]interface{}{"order_id": orderID},
 	)
 
+	dto.PushCheckedInToClient(clientID, orderID, "")
+
 	utils.WriteJSON(w, map[string]interface{}{"status": "success", "message": "guest checked in"})
 }
 
 // ============================================================================
-// PATCH /orders/{id}/check-out
+// PATCH /shortlet/orders/{id}/check-out
 // ============================================================================
 
 // CheckOutOrder godoc
@@ -675,7 +678,7 @@ func CheckInOrder(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  object{status=string,message=string,payout=number}
 // @Failure      400  {object}  object{error=string}
 // @Failure      403  {object}  object{error=string}
-// @Router       /orders/{id}/check-out [patch]
+// @Router       /shortlet/orders/{id}/check-out [patch]
 // @Security     BearerAuth
 func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
@@ -753,9 +756,8 @@ func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("₦%.2f has been released to your wallet.", netPayout),
 			map[string]interface{}{"order_id": orderID, "amount": netPayout},
 		)
-		handlers.SendPushToUser(userID, "Payment Released",
-			fmt.Sprintf("₦%.2f released to your wallet (after platform fee).", netPayout),
-			map[string]string{"screen": "OwnerDashboard", "order_id": orderID.String()})
+		dto.PushOwnerPaymentReleased(userID, fmt.Sprintf("%.2f", netPayout))
+		dto.PushCheckedOutToClient(clientID, orderID)
 	}()
 
 	utils.WriteJSON(w, map[string]interface{}{
@@ -766,7 +768,7 @@ func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /orders  +  GET /orders/{id}
+// GET /shortlet/orders  +  GET /shortlet/orders/{id}
 // ============================================================================
 
 // GetMyOrders godoc
@@ -778,7 +780,7 @@ func CheckOutOrder(w http.ResponseWriter, r *http.Request) {
 // @Param        page    query  integer false  "Page (default 1)"
 // @Param        limit   query  integer false  "Items per page (default 20)"
 // @Success      200  {object}  object{status=string,count=int,data=[]shortlet.Order,pagination=object}
-// @Router       /orders [get]
+// @Router       /shortlet/orders [get]
 // @Security     BearerAuth
 func GetMyOrders(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -871,7 +873,7 @@ func GetMyOrders(w http.ResponseWriter, r *http.Request) {
 // @Param        id  path  string  true  "Order UUID"
 // @Success      200  {object}  object{status=string,data=shortlet.Order}
 // @Failure      404  {object}  object{error=string}
-// @Router       /orders/{id} [get]
+// @Router       /shortlet/orders/{id} [get]
 // @Security     BearerAuth
 func GetOrder(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
