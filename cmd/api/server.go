@@ -121,7 +121,7 @@ func main() {
 			"min_rating", "max_rating", "min_rating_quantity", "max_rating_quantity",
 			"title_search", "description_search", "address_search",
 			"created_after", "created_before", "updated_after", "updated_before",
-			"token", "category", "store_id", "part_id", "order_id",
+			"token", "category", "store_id", "part_id", "order_id", "from", "to",
 		},
 	}
 

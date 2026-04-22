@@ -12,7 +12,7 @@ func profileSettingsRouter() *http.ServeMux {
 	mux.HandleFunc("GET /profile/bank/list", profilesettings.GetBankList)
 	mux.HandleFunc("POST /profile/bank/verify", profilesettings.VerifyBankDetails)
 
-	mux.HandleFunc("POST /profile/artisan/toggle/active-status", profilesettings.ToggleArtisanOnlineStatus)
+	mux.HandleFunc("PATCH /profile/artisan/toggle/active-status", profilesettings.ToggleArtisanOnlineStatus)
 
 	// ── Artisan — Bank ────────────────────────────────────────────────────────
 	mux.HandleFunc("POST /profile/artisan/bank", profilesettings.SaveArtisanBankDetails)
