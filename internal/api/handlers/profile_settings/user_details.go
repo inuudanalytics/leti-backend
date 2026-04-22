@@ -263,6 +263,6 @@ func ToggleArtisanOnlineStatus(w http.ResponseWriter, r *http.Request) {
 
 // isArtisan checks whether the authenticated user's active_role is 'artisan'.
 func isArtisan(ctx context.Context) bool {
-	role, ok := ctx.Value(utils.ContextKey("activeRole")).(string)
+	role, ok := ctx.Value(utils.ContextKey("role")).(string)
 	return ok && role == "artisan"
 }

@@ -402,39 +402,33 @@ func sendCheckinReminders() {
 		clientEmail *string
 		clientPhone *string
 		clientName  string
-		tier        string // "day_2" | "day_1" | "day_0"
-		daysAway    int    // 2, 1, or 0
+		tier        string
+		daysAway    int
 	}
 
 	rows, err := db.Query(ctx, `
 		SELECT
 			o.id,
 			o.client_id,
-			p.name                                     AS prop_name,
+			p.name                                      AS prop_name,
 			o.check_in_date::TEXT,
-			COALESCE(
-				(SELECT check_in_time::TEXT
-				 FROM   property_availability
-				 WHERE  property_id = p.id AND is_active = TRUE
-				 LIMIT  1),
-				'14:00'
-			)                                          AS check_in_time,
+			o.check_in_time::TEXT,
 			u.email,
 			u.phone_number,
-			u.first_name || ' ' || u.last_name         AS client_name,
+			u.first_name || ' ' || u.last_name          AS client_name,
 			t.tier,
 			t.days_away
 		FROM orders o
 		JOIN properties p ON p.id = o.property_id
 		JOIN users      u ON u.id = o.client_id
-
+ 
 		CROSS JOIN LATERAL (
 			VALUES
 				('day_2', 2),
 				('day_1', 1),
 				('day_0', 0)
 		) AS t(tier, days_away)
-
+ 
 		WHERE o.status IN ('confirmed', 'checked_in')
 		  AND o.check_in_date = CURRENT_DATE + (t.days_away || ' days')::INTERVAL
 		  AND NOT EXISTS (
@@ -521,7 +515,7 @@ func sendCheckinReminders() {
 			}
 
 			utils.Logger.Infof("sendCheckinReminders: sent tier=%s order=%s label=%q",
-				j.tier, j.orderID, label)
+				j.orderID, j.tier, label)
 		}(j)
 	}
 

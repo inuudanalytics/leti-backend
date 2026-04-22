@@ -638,23 +638,25 @@ func FetchPropertyForOrder(ctx context.Context, db *pgxpool.Pool, propID uuid.UU
 	var checkIn, checkOut string
 
 	err := db.QueryRow(ctx, `
-		SELECT 
-			p.id, 
-			p.owner_id, 
-			p.name, 
-			p.price_per_night, 
+		SELECT
+			p.id,
+			p.owner_id,
+			p.name,
+			p.price_per_night,
 			p.caution_fee,
-			p.max_adults, 
+			p.max_adults,
 			p.max_children,
-			COALESCE(p.check_in_time::TEXT, '14:00'),
+			COALESCE(p.check_in_time::TEXT,  '14:00'),
 			COALESCE(p.check_out_time::TEXT, '11:00')
 		FROM properties p
-		WHERE p.id = $1 
-		  AND p.status = 'active' 
+		WHERE p.id = $1
+		  AND p.status = 'active'
 		  AND p.deleted_at IS NULL
 	`, propID).Scan(
-		&p.ID, &p.OwnerID, &p.Name, &p.PricePerNight, &p.CautionFee,
-		&p.MaxAdults, &p.MaxChildren, &checkIn, &checkOut,
+		&p.ID, &p.OwnerID, &p.Name,
+		&p.PricePerNight, &p.CautionFee,
+		&p.MaxAdults, &p.MaxChildren,
+		&checkIn, &checkOut,
 	)
 
 	return p, checkIn, checkOut, err
@@ -664,43 +666,28 @@ func CheckDateAvailability(ctx context.Context, db *pgxpool.Pool, propID uuid.UU
 	ci := checkIn.Format("2006-01-02")
 	co := checkOut.Format("2006-01-02")
 
-	// Must have an availability window covering the full range
-	var hasWindow bool
-	db.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM property_availability
-			WHERE property_id = $1 AND is_active = TRUE
-			  AND available_from <= $2 AND available_to >= $3
-		)
-	`, propID, ci, co).Scan(&hasWindow)
-	if !hasWindow {
-		return false, nil
-	}
+	var isAvailable bool
 
-	// Must not have a conflicting active order
-	var hasConflict bool
-	db.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM orders
-			WHERE property_id = $1 AND status IN ('pending','confirmed','checked_in')
-			  AND check_in_date < $3 AND check_out_date > $2
-		)
-	`, propID, ci, co).Scan(&hasConflict)
-	if hasConflict {
-		return false, nil
-	}
+	err := db.QueryRow(ctx, `
+		SELECT
+			-- NOT blocked by owner
+			NOT EXISTS (
+				SELECT 1 FROM property_availability_overrides
+				WHERE property_id = $1
+				  AND blocked_date >= $2
+				  AND blocked_date <  $3
+			)
+			-- AND NOT already booked
+			AND NOT EXISTS (
+				SELECT 1 FROM orders
+				WHERE property_id = $1
+				  AND status IN ('pending', 'confirmed', 'checked_in')
+				  AND check_in_date  < $3
+				  AND check_out_date > $2
+			)
+	`, propID, ci, co).Scan(&isAvailable)
 
-	// Must not have any blocked dates in range
-	var hasBlock bool
-	db.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1 FROM property_availability_overrides
-			WHERE property_id = $1
-			  AND blocked_date >= $2 AND blocked_date < $3
-		)
-	`, propID, ci, co).Scan(&hasBlock)
-
-	return !hasBlock, nil
+	return isAvailable, err
 }
 
 func CheckDateAvailabilityTx(ctx context.Context, tx pgx.Tx, propID uuid.UUID, checkIn, checkOut time.Time) (bool, error) {
@@ -734,7 +721,7 @@ func CheckDateAvailabilityTx(ctx context.Context, tx pgx.Tx, propID uuid.UUID, c
 func FetchPlatformFeePct(ctx context.Context, db *pgxpool.Pool) float64 {
 	var valStr string
 	if err := db.QueryRow(ctx, `SELECT value FROM platform_settings WHERE key = 'platform_service_charge'`).Scan(&valStr); err != nil {
-		return 5.0 // default
+		return 5.0
 	}
 	var pct float64
 	fmt.Sscanf(valStr, "%f", &pct)
