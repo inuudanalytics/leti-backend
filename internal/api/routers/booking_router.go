@@ -38,7 +38,7 @@ func bookingRouter() *http.ServeMux {
 	mux.HandleFunc("PATCH /bookings/{id}/complete", booking.CompleteBooking)
 
 	// ── Read endpoints
-	mux.HandleFunc("GET /bookings", booking.GetMyBookings)
+	mux.HandleFunc("GET /bookings/me", booking.GetMyBookings)
 	mux.HandleFunc("GET /bookings/{id}", booking.GetBooking)
 
 	return mux
