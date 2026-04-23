@@ -1577,13 +1577,16 @@ func SwitchRoleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var isOnlineValue interface{}
 	if req.Role == "artisan" {
-		isOnlineValue = false
+		_, err = tx.Exec(ctx, `
+        UPDATE users SET active_role = $1, is_online = COALESCE(is_online, FALSE)
+        WHERE id = $2
+    `, req.Role, userID)
+	} else {
+		_, err = tx.Exec(ctx, `
+        UPDATE users SET active_role = $1 WHERE id = $2
+    `, req.Role, userID)
 	}
-
-	_, err = tx.Exec(ctx, `UPDATE users SET active_role = $1, is_online = $2 WHERE id = $3`,
-		req.Role, isOnlineValue, userID)
 	if err != nil {
 		utils.Logger.Errorf("failed to switch role: %v", err)
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
