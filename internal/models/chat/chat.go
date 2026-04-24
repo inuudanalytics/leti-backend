@@ -12,6 +12,7 @@ type Conversation struct {
 	OwnerID   uuid.UUID  `json:"owner_id"`
 	ArtisanID uuid.UUID  `json:"artisan_id"`
 	JobID     uuid.UUID  `json:"job_id"`
+	BookingID *uuid.UUID `json:"booking_id"`
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`

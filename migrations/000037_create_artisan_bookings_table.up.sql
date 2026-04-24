@@ -27,6 +27,7 @@ CREATE TABLE artisan_bookings (
     payment_status      VARCHAR(20)             NOT NULL DEFAULT 'pending'
         CHECK (payment_status IN ('pending', 'paid', 'failed')),
     payment_reference   TEXT,
+    service_name TEXT NOT NULL DEFAULT '',
     confirmed_at        TIMESTAMPTZ,
     declined_at         TIMESTAMPTZ,
     cancelled_at        TIMESTAMPTZ,

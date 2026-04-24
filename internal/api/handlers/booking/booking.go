@@ -50,7 +50,6 @@ type LocationPoint struct {
 	Longitude float64 `json:"longitude"`
 }
 
-// ReviewItem represents a single review with reviewer info.
 type ReviewItem struct {
 	ReviewID  uuid.UUID   `json:"review_id"`
 	ClientID  uuid.UUID   `json:"client_id"`
@@ -61,21 +60,18 @@ type ReviewItem struct {
 	CreatedAt time.Time   `json:"created_at"`
 }
 
-// ServiceVariationOption is a single option within a variation type.
 type ServiceVariationOption struct {
 	OptionID      uuid.UUID `json:"option_id"`
 	Label         string    `json:"label"`
 	PriceModifier float64   `json:"price_modifier"`
 }
 
-// ServiceVariationType groups options for one variation axis.
 type ServiceVariationType struct {
 	VariationTypeID    uuid.UUID                `json:"variation_type_id"`
 	VariationTypeLabel string                   `json:"variation_type_label"`
 	Options            []ServiceVariationOption `json:"options"`
 }
 
-// ServiceDetail is a full service with its variation tree.
 type ServiceDetail struct {
 	ServiceID   uuid.UUID              `json:"service_id"`
 	ServiceName string                 `json:"service_name"`
@@ -85,7 +81,6 @@ type ServiceDetail struct {
 	Variations  []ServiceVariationType `json:"variations"`
 }
 
-// PortfolioImage is one portfolio entry.
 type PortfolioImage struct {
 	ImageID    uuid.UUID `json:"image_id"`
 	ImageURL   string    `json:"image_url"`
@@ -94,7 +89,6 @@ type PortfolioImage struct {
 	SortOrder  int       `json:"sort_order"`
 }
 
-// ArtisanProfileDetail is the full single-artisan response.
 type ArtisanProfileDetail struct {
 	UserID        uuid.UUID         `json:"user_id"`
 	Username      string            `json:"username"`
@@ -120,7 +114,7 @@ type ArtisanProfileDetail struct {
 
 // CreateBooking godoc
 // @Summary      Request a booking
-// @Description  Creates a booking request for a specific artisan, date, and time slot. The slot must fall within the artisan's active availability window and must not already be booked. The booking starts in 'pending' status — the artisan must confirm before any payment is collected. Payment method is chosen at payment time (POST /bookings/{id}/pay), not here.
+// @Description  Creates a booking request for a specific artisan, date, and time slot. The slot must fall within the artisan's active availability window and must not already be booked. The booking starts in 'pending' status — the artisan must confirm before any payment is collected. Payment method is chosen at payment time (POST /bookings/{id}/pay), not here. The resolved service_name is stored on the booking row for efficient list rendering.
 // @Tags         Booking
 // @Accept       json
 // @Produce      json
@@ -162,9 +156,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		StartTime       string    `json:"start_time"`
 		Address         *string   `json:"address,omitempty"`
 		Note            *string   `json:"note,omitempty"`
-		// PaymentMethod is intentionally absent here — the client chooses their
-		// payment method when they pay (POST /bookings/{id}/pay), after the
-		// artisan has confirmed the booking.
 	}
 
 	var req request
@@ -221,7 +212,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	weekday := int(parsedDate.Weekday())
 	dateStr := req.BookingDate
 
-	// ── Override check ────────────────────────────────────────────────────────
 	var isAvailableOverride *bool
 	ovErr := db.QueryRow(ctx, `
 		SELECT is_available FROM artisan_availability_overrides
@@ -237,7 +227,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── Find the availability window that matches start_time ──────────────────
 	var endTime string
 	err = db.QueryRow(ctx, `
 		SELECT end_time::TEXT
@@ -258,9 +247,8 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── Resolve price ─────────────────────────────────────────────────────────
 	var totalPrice float64
-	var serviceName string = "Booking"
+	var serviceName string = ""
 
 	if req.ServiceID != nil {
 		serviceID, err := uuid.Parse(*req.ServiceID)
@@ -306,7 +294,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// ── Tx: advisory lock  →  slot conflict check  →  insert ─────────────────
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		utils.Logger.Errorf("failed to begin tx: %v", err)
@@ -344,18 +331,21 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO artisan_bookings (
 			client_id, artisan_id, category_id,
 			service_id, service_option_id,
+			service_name,
 			booking_date, start_time, end_time,
 			total_price, address, note,
 			status, payment_status
 		) VALUES (
 			$1, $2, $3,
 			$4, $5,
-			$6, $7, $8,
-			$9, $10, $11,
+			$6,
+			$7, $8, $9,
+			$10, $11, $12,
 			'pending', 'pending'
 		)
 		RETURNING id, client_id, artisan_id, category_id,
 		          service_id, service_option_id,
+		          service_name,
 		          booking_date::TEXT, start_time::TEXT, end_time::TEXT,
 		          total_price, address, note,
 		          status, payment_method, payment_status,
@@ -363,11 +353,13 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 	`,
 		clientID, artisanID, req.CategoryID,
 		serviceIDParam, serviceOptIDParam,
+		serviceName,
 		dateStr, req.StartTime, endTime,
 		totalPrice, req.Address, req.Note,
 	).Scan(
 		&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
 		&bk.ServiceID, &bk.ServiceOptionID,
+		&bk.ServiceName,
 		&bk.BookingDate, &bk.StartTime, &bk.EndTime,
 		&bk.TotalPrice, &bk.Address, &bk.Note,
 		&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
@@ -385,7 +377,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── Fetch artisan contact details for email/SMS ───────────────────────────
 	go func() {
 		bgCtx := context.Background()
 
@@ -400,6 +391,11 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 			`SELECT username FROM users WHERE id = $1`, clientID,
 		).Scan(&clientUsername)
 
+		displayName := serviceName
+		if displayName == "" {
+			displayName = "Booking"
+		}
+
 		utils.CreateNotification(bgCtx, artisanID,
 			utils.NotifBookingRequest,
 			"New Booking Request",
@@ -407,14 +403,14 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 			map[string]interface{}{"booking_id": bk.ID},
 		)
 
-		dto.PushBookingRequest(artisanID, bk.ID, clientUsername, serviceName)
+		dto.PushBookingRequest(artisanID, bk.ID, clientUsername, displayName)
 
 		if artisanEmail != "" {
 			utils.SendBookingRequestEmail(
 				artisanEmail,
 				artisanUsername,
 				clientUsername,
-				serviceName,
+				displayName,
 				bk.BookingDate,
 				bk.StartTime,
 			)
@@ -425,7 +421,7 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 				artisanPhone,
 				artisanUsername,
 				clientUsername,
-				serviceName,
+				displayName,
 				bk.BookingDate,
 				bk.StartTime,
 			)
@@ -443,9 +439,6 @@ func CreateBooking(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 // PATCH /bookings/{id}/confirm
 // ============================================================================
-// Artisan confirms the booking.
-// This does NOT collect payment — it notifies the client to pay.
-// Payment is handled by a separate POST /bookings/{id}/pay endpoint.
 
 // ConfirmBooking godoc
 // @Summary      Confirm a booking (artisan only)
@@ -498,6 +491,7 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		WHERE  id = $1 AND artisan_id = $2 AND status = 'pending'
 		RETURNING id, client_id, artisan_id, category_id,
 		          service_id, service_option_id,
+		          service_name,
 		          booking_date::TEXT, start_time::TEXT, end_time::TEXT,
 		          total_price, address, note,
 		          status, payment_method, payment_status,
@@ -505,6 +499,7 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 	`, bookingID, userID).Scan(
 		&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
 		&bk.ServiceID, &bk.ServiceOptionID,
+		&bk.ServiceName,
 		&bk.BookingDate, &bk.StartTime, &bk.EndTime,
 		&bk.TotalPrice, &bk.Address, &bk.Note,
 		&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
@@ -520,7 +515,6 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ── Notify client to pay ──────────────────────────────────────────────────
 	go func() {
 		bgCtx := context.Background()
 
@@ -530,18 +524,14 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 			bk.ClientID,
 		).Scan(&clientEmail, &clientPhone, &clientUsername)
 
-		var artisanUsername, serviceName string
+		var artisanUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
 			`SELECT username FROM users WHERE id = $1`, bk.ArtisanID,
 		).Scan(&artisanUsername)
 
-		if bk.ServiceID != nil {
-			_ = sqlconnect.DB.QueryRow(bgCtx,
-				`SELECT name FROM artisan_services WHERE id = $1`, *bk.ServiceID,
-			).Scan(&serviceName)
-		}
-		if serviceName == "" {
-			serviceName = "Booking"
+		displayName := bk.ServiceName
+		if displayName == "" {
+			displayName = "Booking"
 		}
 
 		utils.CreateNotification(bgCtx, bk.ClientID,
@@ -561,7 +551,7 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 				clientEmail,
 				clientUsername,
 				artisanUsername,
-				serviceName,
+				displayName,
 				bk.BookingDate,
 				bk.StartTime,
 				fmt.Sprintf("%.2f", bk.TotalPrice),
@@ -573,7 +563,7 @@ func ConfirmBooking(w http.ResponseWriter, r *http.Request) {
 				clientPhone,
 				clientUsername,
 				artisanUsername,
-				serviceName,
+				displayName,
 				bk.BookingDate,
 			)
 		}
@@ -632,17 +622,15 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Fetch enough data to send notifications before updating
 	var clientID, artisanID uuid.UUID
 	var bookingDate, serviceName string
-	var serviceID *uuid.UUID
 
 	err = db.QueryRow(ctx, `
 		UPDATE artisan_bookings
 		SET    status = 'declined', declined_at = NOW(), updated_at = NOW()
 		WHERE  id = $1 AND artisan_id = $2 AND status = 'pending'
-		RETURNING client_id, artisan_id, booking_date::TEXT, service_id
-	`, bookingID, userID).Scan(&clientID, &artisanID, &bookingDate, &serviceID)
+		RETURNING client_id, artisan_id, booking_date::TEXT, service_name
+	`, bookingID, userID).Scan(&clientID, &artisanID, &bookingDate, &serviceName)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "booking not found or not pending", http.StatusNotFound)
@@ -667,13 +655,9 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 			`SELECT username FROM users WHERE id = $1`, artisanID,
 		).Scan(&artisanUsername)
 
-		if serviceID != nil {
-			_ = sqlconnect.DB.QueryRow(bgCtx,
-				`SELECT name FROM artisan_services WHERE id = $1`, *serviceID,
-			).Scan(&serviceName)
-		}
-		if serviceName == "" {
-			serviceName = "Booking"
+		displayName := serviceName
+		if displayName == "" {
+			displayName = "Booking"
 		}
 
 		utils.CreateNotification(bgCtx, clientID,
@@ -690,7 +674,7 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 				clientEmail,
 				clientUsername,
 				artisanUsername,
-				serviceName,
+				displayName,
 				bookingDate,
 			)
 		}
@@ -700,7 +684,7 @@ func DeclineBooking(w http.ResponseWriter, r *http.Request) {
 				clientPhone,
 				clientUsername,
 				artisanUsername,
-				serviceName,
+				displayName,
 			)
 		}
 	}()
@@ -752,7 +736,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Use a transaction: cancellation may trigger an escrow refund atomically.
 	tx, err := db.Begin(ctx)
 	if err != nil {
 		utils.Logger.Errorf("failed to begin cancel tx: %v", err)
@@ -762,8 +745,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback(ctx)
 
 	var clientID, artisanID uuid.UUID
-	var bookingDate, paymentStatus string
-	var serviceID *uuid.UUID
+	var bookingDate, paymentStatus, serviceName string
 
 	err = tx.QueryRow(ctx, `
 		UPDATE artisan_bookings
@@ -774,8 +756,8 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		WHERE  id = $1
 		  AND  (client_id = $2 OR artisan_id = $2)
 		  AND  status IN ('pending', 'confirmed')
-		RETURNING client_id, artisan_id, booking_date::TEXT, payment_status, service_id
-	`, bookingID, userID).Scan(&clientID, &artisanID, &bookingDate, &paymentStatus, &serviceID)
+		RETURNING client_id, artisan_id, booking_date::TEXT, payment_status, service_name
+	`, bookingID, userID).Scan(&clientID, &artisanID, &bookingDate, &paymentStatus, &serviceName)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "booking not found or cannot be cancelled", http.StatusNotFound)
@@ -786,7 +768,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine who cancelled and who to notify
 	cancelledByRole := "client"
 	notifyID := artisanID
 	if userID == artisanID {
@@ -794,7 +775,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 		notifyID = clientID
 	}
 
-	// If client already paid, refund escrow to their wallet inside the same tx.
 	refundProcessed := false
 	if paymentStatus == "paid" {
 		if err := RefundBookingEscrow(ctx, tx, bookingID, clientID, artisanID); err != nil {
@@ -814,7 +794,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		bgCtx := context.Background()
 
-		// Fetch both parties
 		var notifyEmail, notifyPhone, notifyUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
 			`SELECT COALESCE(email,''), COALESCE(phone_number,''), username FROM users WHERE id = $1`,
@@ -826,14 +805,9 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 			`SELECT username FROM users WHERE id = $1`, userID,
 		).Scan(&cancellerUsername)
 
-		var serviceName string
-		if serviceID != nil {
-			_ = sqlconnect.DB.QueryRow(bgCtx,
-				`SELECT name FROM artisan_services WHERE id = $1`, *serviceID,
-			).Scan(&serviceName)
-		}
-		if serviceName == "" {
-			serviceName = "Booking"
+		displayName := serviceName
+		if displayName == "" {
+			displayName = "Booking"
 		}
 
 		utils.CreateNotification(bgCtx, notifyID,
@@ -860,7 +834,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 				notifyEmail,
 				notifyUsername,
 				cancellerUsername,
-				serviceName,
+				displayName,
 				bookingDate,
 				cancelledByRole,
 			)
@@ -871,7 +845,7 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 				notifyPhone,
 				notifyUsername,
 				cancellerUsername,
-				serviceName,
+				displayName,
 				bookingDate,
 				cancelledByRole,
 			)
@@ -887,13 +861,6 @@ func CancelBooking(w http.ResponseWriter, r *http.Request) {
 // ============================================================================
 // PATCH /bookings/{id}/complete
 // ============================================================================
-// Dual-confirmation model:
-//   - Artisan marks complete  → artisan_completed_at set, escrow NOT released
-//   - Client marks complete   → client_completed_at set, escrow released
-//   - Both have marked        → second call by either party triggers full release
-//
-// The conversation linked to this booking is scheduled to expire 24h after
-// both parties confirm.
 
 // CompleteBooking godoc
 // @Summary      Mark a booking as completed
@@ -961,6 +928,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(ctx, `
 		SELECT id, client_id, artisan_id, category_id,
 		       service_id, service_option_id,
+		       service_name,
 		       booking_date::TEXT, start_time::TEXT, end_time::TEXT,
 		       total_price, address, note,
 		       status, payment_method, payment_status,
@@ -974,6 +942,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 	`, bookingID, userID).Scan(
 		&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
 		&bk.ServiceID, &bk.ServiceOptionID,
+		&bk.ServiceName,
 		&bk.BookingDate, &bk.StartTime, &bk.EndTime,
 		&bk.TotalPrice, &bk.Address, &bk.Note,
 		&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
@@ -1077,7 +1046,7 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 	go func(fullyComplete bool, role string, bk booking.Booking, artisanCompletedAt *time.Time) {
 		bgCtx := context.Background()
 
-		var artisanUsername, serviceName string
+		var artisanUsername string
 		_ = sqlconnect.DB.QueryRow(bgCtx,
 			`SELECT username FROM users WHERE id = $1`, bk.ArtisanID,
 		).Scan(&artisanUsername)
@@ -1088,13 +1057,9 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 			bk.ClientID,
 		).Scan(&clientEmail, &clientPhone, &clientUsername)
 
-		if bk.ServiceID != nil {
-			_ = sqlconnect.DB.QueryRow(bgCtx,
-				`SELECT name FROM artisan_services WHERE id = $1`, *bk.ServiceID,
-			).Scan(&serviceName)
-		}
-		if serviceName == "" {
-			serviceName = "Booking"
+		displayName := bk.ServiceName
+		if displayName == "" {
+			displayName = "Booking"
 		}
 
 		if fullyComplete {
@@ -1115,10 +1080,10 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 			dto.PushArtisanPaymentReleased(bk.ArtisanID, fmt.Sprintf("%.2f", netPayout))
 
 			if clientEmail != "" {
-				utils.SendBookingCompletedEmail(clientEmail, clientUsername, artisanUsername, serviceName, bk.BookingDate)
+				utils.SendBookingCompletedEmail(clientEmail, clientUsername, artisanUsername, displayName, bk.BookingDate)
 			}
 			if clientPhone != "" {
-				utils.SendBookingCompletedSMS(clientPhone, clientUsername, artisanUsername, serviceName)
+				utils.SendBookingCompletedSMS(clientPhone, clientUsername, artisanUsername, displayName)
 			}
 
 		} else {
@@ -1140,19 +1105,18 @@ func CompleteBooking(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// GET /bookings  +  GET /bookings/{id}
-// (unchanged from original — reproduced here for completeness)
+// GET /bookings
 // ============================================================================
 
 // GetMyBookings godoc
 // @Summary      List bookings
-// @Description  Returns a paginated list of bookings. Clients see bookings they created; artisans see bookings assigned to them. Optionally filter by status.
+// @Description  Returns a paginated list of bookings. Clients see bookings they created; artisans see bookings assigned to them. Optionally filter by status. Each item in the list includes the artisan's username and avatar (for card rendering) and the denormalized service_name (no extra join needed).
 // @Tags         Booking
 // @Produce      json
 // @Param        status  query  string  false  "Filter: pending|confirmed|declined|cancelled|completed|disputed"
 // @Param        page    query  int     false  "Page (default 1)"
 // @Param        limit   query  int     false  "Items per page (default 20)"
-// @Success      200  {object}  object{status=string,count=int,data=[]booking.Booking,pagination=object{total=int,page=int,limit=int,total_pages=int}}
+// @Success      200  {object}  object{status=string,count=int,data=[]booking.BookingListItem,pagination=object{total=int,page=int,limit=int,total_pages=int}}
 // @Router       /bookings [get]
 // @Security     BearerAuth
 func GetMyBookings(w http.ResponseWriter, r *http.Request) {
@@ -1187,16 +1151,16 @@ func GetMyBookings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	whereCol := "client_id"
+	whereCol := "ab.client_id"
 	if role == "artisan" {
-		whereCol = "artisan_id"
+		whereCol = "ab.artisan_id"
 	}
 
 	args := []interface{}{userID}
 	where := whereCol + " = $1"
 	argIdx := 2
 	if statusFilter != "" {
-		where += " AND status = $2"
+		where += " AND ab.status = $2"
 		args = append(args, statusFilter)
 		argIdx = 3
 	}
@@ -1205,20 +1169,28 @@ func GetMyBookings(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	var total int
-	_ = db.QueryRow(ctx, "SELECT COUNT(*) FROM artisan_bookings WHERE "+where, args...).Scan(&total)
+	_ = db.QueryRow(ctx, "SELECT COUNT(*) FROM artisan_bookings ab WHERE "+where, args...).Scan(&total)
 
 	fetchArgs := append(args, limit, offset)
+
+	// JOIN users to get artisan's username + avatar for list card rendering.
+	// service_name is already stored on the booking row (no extra join needed).
 	rows, err := db.Query(ctx, `
-		SELECT id, client_id, artisan_id, category_id,
-		       service_id, service_option_id,
-		       booking_date::TEXT, start_time::TEXT, end_time::TEXT,
-		       total_price, address, note,
-		       status, payment_method, payment_status,
-		       confirmed_at, declined_at, cancelled_at, cancelled_by,
-		       completed_at, created_at, updated_at
-		FROM artisan_bookings
+		SELECT
+			ab.id, ab.client_id, ab.artisan_id, ab.category_id,
+			ab.service_id, ab.service_option_id,
+			ab.service_name,
+			ab.booking_date::TEXT, ab.start_time::TEXT, ab.end_time::TEXT,
+			ab.total_price, ab.address, ab.note,
+			ab.status, ab.payment_method, ab.payment_status,
+			ab.confirmed_at, ab.declined_at, ab.cancelled_at, ab.cancelled_by,
+			ab.completed_at, ab.created_at, ab.updated_at,
+			u.username  AS artisan_username,
+			u.avatar    AS artisan_avatar
+		FROM artisan_bookings ab
+		JOIN users u ON u.id = ab.artisan_id
 		WHERE `+where+`
-		ORDER BY created_at DESC
+		ORDER BY ab.created_at DESC
 		LIMIT $`+handlers.Itoa(argIdx)+` OFFSET $`+handlers.Itoa(argIdx+1),
 		fetchArgs...,
 	)
@@ -1229,23 +1201,26 @@ func GetMyBookings(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	bookings := make([]booking.Booking, 0)
+	bookings := make([]booking.BookingListItem, 0)
 	for rows.Next() {
-		var bk booking.Booking
+		var item booking.BookingListItem
 		if err := rows.Scan(
-			&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
-			&bk.ServiceID, &bk.ServiceOptionID,
-			&bk.BookingDate, &bk.StartTime, &bk.EndTime,
-			&bk.TotalPrice, &bk.Address, &bk.Note,
-			&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
-			&bk.ConfirmedAt, &bk.DeclinedAt, &bk.CancelledAt, &bk.CancelledBy,
-			&bk.CompletedAt, &bk.CreatedAt, &bk.UpdatedAt,
+			&item.ID, &item.ClientID, &item.ArtisanID, &item.CategoryID,
+			&item.ServiceID, &item.ServiceOptionID,
+			&item.ServiceName,
+			&item.BookingDate, &item.StartTime, &item.EndTime,
+			&item.TotalPrice, &item.Address, &item.Note,
+			&item.Status, &item.PaymentMethod, &item.PaymentStatus,
+			&item.ConfirmedAt, &item.DeclinedAt, &item.CancelledAt, &item.CancelledBy,
+			&item.CompletedAt, &item.CreatedAt, &item.UpdatedAt,
+			&item.ArtisanUsername,
+			&item.ArtisanAvatar,
 		); err != nil {
-			utils.Logger.Errorf("failed to scan booking: %v", err)
+			utils.Logger.Errorf("failed to scan booking list item: %v", err)
 			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 			return
 		}
-		bookings = append(bookings, bk)
+		bookings = append(bookings, item)
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -1260,13 +1235,17 @@ func GetMyBookings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ============================================================================
+// GET /bookings/{id}
+// ============================================================================
+
 // GetBooking godoc
-// @Summary      Get a single booking
-// @Description  Returns full detail for a booking. The caller must be the client or the artisan on the booking.
+// @Summary      Get a single booking (enriched detail)
+// @Description  Returns full enriched detail for a booking. The caller must be the client or the artisan on the booking. All UUIDs are resolved: artisan username + avatar, category name, service name + base price, and the selected service option with its variation type label and price modifier.
 // @Tags         Booking
 // @Produce      json
 // @Param        id  path  string  true  "Booking UUID"
-// @Success      200  {object}  object{status=string,data=booking.Booking}
+// @Success      200  {object}  object{status=string,data=booking.BookingDetail}
 // @Failure      404  {object}  object{error=string}
 // @Router       /bookings/{id} [get]
 // @Security     BearerAuth
@@ -1294,42 +1273,126 @@ func GetBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	var bk booking.Booking
+	// Single query joining all enrichment tables.
+	// LEFT JOINs are used for optional fields (service, option, variation type)
+	// so that bookings without a service still return correctly.
+	var detail booking.BookingDetail
+	var categoryName string
+	var serviceBasePrice *float64
+	var optionID *uuid.UUID
+	var optionLabel, variationTypeLabel *string
+	var optionPriceModifier *float64
+	var variationTypeID *uuid.UUID
+
 	err = db.QueryRow(ctx, `
-		SELECT id, client_id, artisan_id, category_id,
-		       service_id, service_option_id,
-		       booking_date::TEXT, start_time::TEXT, end_time::TEXT,
-		       total_price, address, note,
-		       status, payment_method, payment_status,
-		       confirmed_at, declined_at, cancelled_at, cancelled_by,
-		       completed_at, created_at, updated_at
-		FROM artisan_bookings
-		WHERE id = $1 AND (client_id = $2 OR artisan_id = $2)
+		SELECT
+			ab.id,
+			ab.client_id,
+			ab.artisan_id,
+			u.username                           AS artisan_username,
+			u.avatar                             AS artisan_avatar,
+			ab.category_id,
+			jc.name                              AS category_name,
+			ab.service_id,
+			ab.service_name,
+			svc.base_price                       AS service_base_price,
+			ab.service_option_id,
+			opt.id                               AS option_id,
+			opt.label                            AS option_label,
+			opt.price_modifier                   AS option_price_modifier,
+			svt.id                               AS variation_type_id,
+			svt.label                            AS variation_type_label,
+			ab.booking_date::TEXT,
+			ab.start_time::TEXT,
+			ab.end_time::TEXT,
+			ab.total_price,
+			ab.address,
+			ab.note,
+			ab.status,
+			ab.payment_method,
+			ab.payment_status,
+			ab.payment_reference,
+			ab.confirmed_at,
+			ab.declined_at,
+			ab.cancelled_at,
+			ab.cancelled_by,
+			ab.completed_at,
+			ab.created_at,
+			ab.updated_at
+		FROM artisan_bookings ab
+		JOIN users u                              ON u.id   = ab.artisan_id
+		JOIN job_categories jc                   ON jc.id  = ab.category_id
+		LEFT JOIN artisan_services svc           ON svc.id = ab.service_id
+		LEFT JOIN artisan_service_options opt    ON opt.id = ab.service_option_id
+		LEFT JOIN service_variation_types svt   ON svt.id = opt.variation_type_id
+		WHERE ab.id = $1
+		  AND (ab.client_id = $2 OR ab.artisan_id = $2)
 	`, bookingID, userID).Scan(
-		&bk.ID, &bk.ClientID, &bk.ArtisanID, &bk.CategoryID,
-		&bk.ServiceID, &bk.ServiceOptionID,
-		&bk.BookingDate, &bk.StartTime, &bk.EndTime,
-		&bk.TotalPrice, &bk.Address, &bk.Note,
-		&bk.Status, &bk.PaymentMethod, &bk.PaymentStatus,
-		&bk.ConfirmedAt, &bk.DeclinedAt, &bk.CancelledAt, &bk.CancelledBy,
-		&bk.CompletedAt, &bk.CreatedAt, &bk.UpdatedAt,
+		&detail.ID,
+		&detail.ClientID,
+		&detail.ArtisanID,
+		&detail.ArtisanUsername,
+		&detail.ArtisanAvatar,
+		&detail.CategoryID,
+		&categoryName,
+		&detail.ServiceID,
+		&detail.ServiceName,
+		&serviceBasePrice,
+		&detail.ServiceOptionID,
+		&optionID,
+		&optionLabel,
+		&optionPriceModifier,
+		&variationTypeID,
+		&variationTypeLabel,
+		&detail.BookingDate,
+		&detail.StartTime,
+		&detail.EndTime,
+		&detail.TotalPrice,
+		&detail.Address,
+		&detail.Note,
+		&detail.Status,
+		&detail.PaymentMethod,
+		&detail.PaymentStatus,
+		&detail.PaymentReference,
+		&detail.ConfirmedAt,
+		&detail.DeclinedAt,
+		&detail.CancelledAt,
+		&detail.CancelledBy,
+		&detail.CompletedAt,
+		&detail.CreatedAt,
+		&detail.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			utils.WriteError(w, "booking not found", http.StatusNotFound)
 			return
 		}
-		utils.Logger.Errorf("failed to fetch booking: %v", err)
+		utils.Logger.Errorf("failed to fetch booking detail: %v", err)
 		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
+	detail.CategoryName = categoryName
+	detail.ServiceBasePrice = serviceBasePrice
+
+	// Assemble the optional service option block
+	if optionID != nil && optionLabel != nil && optionPriceModifier != nil &&
+		variationTypeID != nil && variationTypeLabel != nil {
+		detail.ServiceOption = &booking.BookingServiceOption{
+			OptionID:           *optionID,
+			OptionLabel:        *optionLabel,
+			PriceModifier:      *optionPriceModifier,
+			VariationTypeID:    *variationTypeID,
+			VariationTypeLabel: *variationTypeLabel,
+		}
+	}
+
 	utils.WriteJSON(w, map[string]interface{}{
 		"status": "success",
-		"data":   bk,
+		"data":   detail,
 	})
 }
 

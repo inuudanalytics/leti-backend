@@ -22,7 +22,7 @@ func sendTermiiSMS(phoneNumber, message string) error {
 		From:    senderID,
 		Sms:     message,
 		Type:    "plain",
-		Channel: "generic",
+		Channel: "dnd",
 		ApiKey:  apiKey,
 	}
 

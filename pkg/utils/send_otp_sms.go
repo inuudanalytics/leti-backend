@@ -44,7 +44,7 @@ func SendOTPSMS(phoneNumber, fullName, otp string, expiry time.Time) error {
 		From:    senderID,
 		Sms:     message,
 		Type:    "plain",
-		Channel: "generic",
+		Channel: "dnd",
 		ApiKey:  apiKey,
 	}
 

@@ -28,7 +28,6 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Hub is the singleton hub initialised in main and injected here.
 var Hub *chathub.Hub
 
 // ============================================================================
@@ -91,11 +90,11 @@ func ServeWS(w http.ResponseWriter, r *http.Request) {
 
 // StartConversation godoc
 // @Summary      Start or retrieve a conversation
-// @Description  Creates a new conversation between a client and an artisan for a specific job, or retrieves the existing one if it already exists. Only the client who owns the job can start the conversation.
+// @Description  Creates a new conversation between a client and an artisan for a specific job OR artisan booking, or retrieves the existing one. Only the client who owns the job/booking can start the conversation. Provide exactly one of job_id or booking_id.
 // @Tags         Chat
 // @Accept       json
 // @Produce      json
-// @Param        body  body  object{artisan_id=string,job_id=string}  true  "Artisan UUID and Job UUID"
+// @Param        body  body  object{artisan_id=string,job_id=string,booking_id=string}  true  "Artisan UUID plus exactly one of job_id or booking_id"
 // @Success      200   {object}  object{status=string,message=string,conversation=chat.Conversation}
 // @Failure      400   {object}  object{error=string}
 // @Failure      403   {object}  object{error=string}
@@ -128,14 +127,13 @@ func StartConversation(w http.ResponseWriter, r *http.Request) {
 
 	type request struct {
 		ArtisanID string `json:"artisan_id"`
-		JobID     string `json:"job_id"`
+		JobID     string `json:"job_id,omitempty"`
+		BookingID string `json:"booking_id,omitempty"`
 	}
 
 	var req request
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&req); err != nil {
-		utils.WriteError(w, "invalid or unexpected fields in body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
@@ -144,8 +142,13 @@ func StartConversation(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, "artisan_id is required", http.StatusBadRequest)
 		return
 	}
-	if req.JobID == "" {
-		utils.WriteError(w, "job_id is required", http.StatusBadRequest)
+
+	if req.JobID == "" && req.BookingID == "" {
+		utils.WriteError(w, "one of job_id or booking_id is required", http.StatusBadRequest)
+		return
+	}
+	if req.JobID != "" && req.BookingID != "" {
+		utils.WriteError(w, "provide either job_id or booking_id, not both", http.StatusBadRequest)
 		return
 	}
 
@@ -155,67 +158,124 @@ func StartConversation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobID, err := uuid.Parse(req.JobID)
-	if err != nil {
-		utils.WriteError(w, "invalid job_id", http.StatusBadRequest)
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Job must belong to this client
-	var jobClientID uuid.UUID
-	err = db.QueryRow(ctx,
-		`SELECT client_id FROM jobs WHERE id = $1`,
-		jobID,
-	).Scan(&jobClientID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			utils.WriteError(w, "job not found", http.StatusNotFound)
-			return
-		}
-		utils.Logger.Errorf("failed to fetch job: %v", err)
-		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	if jobClientID != userID {
-		utils.WriteError(w, "you do not own this job", http.StatusForbidden)
-		return
-	}
-
-	// Upsert conversation (one conversation per job)
 	var convo chat.Conversation
 	var xmax uint64
-	err = db.QueryRow(ctx, `
-		INSERT INTO conversations (owner_id, artisan_id, job_id)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (job_id) DO UPDATE
-			SET updated_at = conversations.updated_at
-		RETURNING id, owner_id, artisan_id, job_id, created_at, updated_at, xmax
-	`, userID, artisanID, jobID).Scan(
-		&convo.ID,
-		&convo.OwnerID,
-		&convo.ArtisanID,
-		&convo.JobID,
-		&convo.CreatedAt,
-		&convo.UpdatedAt,
-		&xmax,
-	)
-	if err != nil {
-		utils.Logger.Errorf("failed to upsert conversation: %v", err)
-		utils.WriteError(w, "internal server error", http.StatusInternalServerError)
-		return
+	var statusMsg string
+
+	if req.JobID != "" {
+		jobID, err := uuid.Parse(req.JobID)
+		if err != nil {
+			utils.WriteError(w, "invalid job_id", http.StatusBadRequest)
+			return
+		}
+
+		var jobClientID uuid.UUID
+		err = db.QueryRow(ctx,
+			`SELECT client_id FROM jobs WHERE id = $1`,
+			jobID,
+		).Scan(&jobClientID)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				utils.WriteError(w, "job not found", http.StatusNotFound)
+				return
+			}
+			utils.Logger.Errorf("failed to fetch job: %v", err)
+			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if jobClientID != userID {
+			utils.WriteError(w, "you do not own this job", http.StatusForbidden)
+			return
+		}
+
+		err = db.QueryRow(ctx, `
+			INSERT INTO conversations (owner_id, artisan_id, job_id)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (job_id) WHERE job_id IS NOT NULL DO UPDATE
+				SET updated_at = conversations.updated_at
+			RETURNING id, owner_id, artisan_id, job_id, booking_id, created_at, updated_at, xmax
+		`, userID, artisanID, jobID).Scan(
+			&convo.ID,
+			&convo.OwnerID,
+			&convo.ArtisanID,
+			&convo.JobID,
+			&convo.BookingID,
+			&convo.CreatedAt,
+			&convo.UpdatedAt,
+			&xmax,
+		)
+		if err != nil {
+			utils.Logger.Errorf("failed to upsert job conversation: %v", err)
+			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		statusMsg = "conversation retrieved"
+		if xmax == 0 {
+			statusMsg = "conversation started"
+			if Hub != nil && chathub.PushNotifier != nil {
+				go chathub.PushNotifier(artisanID, "New Job Request", "A client has opened a conversation for a job.")
+			}
+		}
 	}
 
-	isNew := xmax == 0
-	statusMsg := "conversation retrieved"
-	if isNew {
-		statusMsg = "conversation started"
-		// Notify artisan of the new conversation
-		if Hub != nil && chathub.PushNotifier != nil {
-			go chathub.PushNotifier(artisanID, "New Job Request", "A client has opened a conversation for a job.")
+	if req.BookingID != "" {
+		bookingID, err := uuid.Parse(req.BookingID)
+		if err != nil {
+			utils.WriteError(w, "invalid booking_id", http.StatusBadRequest)
+			return
+		}
+
+		var bookingClientID uuid.UUID
+		err = db.QueryRow(ctx,
+			`SELECT client_id FROM artisan_bookings WHERE id = $1`,
+			bookingID,
+		).Scan(&bookingClientID)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				utils.WriteError(w, "booking not found", http.StatusNotFound)
+				return
+			}
+			utils.Logger.Errorf("failed to fetch booking: %v", err)
+			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if bookingClientID != userID {
+			utils.WriteError(w, "you do not own this booking", http.StatusForbidden)
+			return
+		}
+
+		err = db.QueryRow(ctx, `
+			INSERT INTO conversations (owner_id, artisan_id, booking_id)
+			VALUES ($1, $2, $3)
+			ON CONFLICT (booking_id) WHERE booking_id IS NOT NULL DO UPDATE
+				SET updated_at = conversations.updated_at
+			RETURNING id, owner_id, artisan_id, job_id, booking_id, created_at, updated_at, xmax
+		`, userID, artisanID, bookingID).Scan(
+			&convo.ID,
+			&convo.OwnerID,
+			&convo.ArtisanID,
+			&convo.JobID,
+			&convo.BookingID,
+			&convo.CreatedAt,
+			&convo.UpdatedAt,
+			&xmax,
+		)
+		if err != nil {
+			utils.Logger.Errorf("failed to upsert booking conversation: %v", err)
+			utils.WriteError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		statusMsg = "conversation retrieved"
+		if xmax == 0 {
+			statusMsg = "conversation started"
+			if Hub != nil && chathub.PushNotifier != nil {
+				go chathub.PushNotifier(artisanID, "New Booking", "A client has opened a conversation for a booking.")
+			}
 		}
 	}
 
@@ -448,7 +508,6 @@ func GetMessages(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// Confirm caller is a participant
 	var ownerID, artisanID uuid.UUID
 	err = db.QueryRow(ctx,
 		`SELECT owner_id, artisan_id FROM conversations WHERE id = $1 AND deleted_at IS NULL`,
@@ -469,7 +528,6 @@ func GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse pagination params
 	limit := 50
 	offset := 0
 	if v := r.URL.Query().Get("limit"); v != "" {
@@ -618,7 +676,6 @@ func MarkMessagesRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Notify the other party via WebSocket
 	if Hub != nil {
 		otherID := ownerID
 		if userID == ownerID {
@@ -732,7 +789,6 @@ func SendImageMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Open all files
 	var files []utils.UploadFile
 	var openFiles []io.Closer
 	for _, h := range imageHeaders {
@@ -750,7 +806,6 @@ func SendImageMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Upload to Cloudinary
 	cloud, err := utils.InitCloudinary()
 	if err != nil {
 		utils.WriteError(w, "failed to initialize cloudinary", http.StatusInternalServerError)
